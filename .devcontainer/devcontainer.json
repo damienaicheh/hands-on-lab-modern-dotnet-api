@@ -1,0 +1,28 @@
+{
+  "name": "Dotnet Containers",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:10.0",
+  "containerUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers/features/azure-cli:latest": {},
+    "ghcr.io/devcontainers/features/terraform:latest": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:3": {}
+  },
+  "postCreateCommand": "npm install -g @typespec/compiler",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-dotnettools.csharp",
+        "ms-dotnettools.csdevkit",
+        "hashicorp.terraform",
+        "humao.rest-client",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "vitest.explorer"
+      ]
+    }
+  },
+  "remoteUser": "vscode"
+}
