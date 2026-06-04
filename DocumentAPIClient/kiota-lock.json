@@ -1,0 +1,34 @@
+{
+  "descriptionHash": "2280E04119D3ED39E198D3DAD9881F4A24423C5BC0D56E0A416F0B67D4C5DD00DB54448B30D334CEF11D2292A7DE08DEE6F6381B68C027B9AC8179DB8C9DDE56",
+  "descriptionLocation": "../spec/tsp-output/schema/openapi.yaml",
+  "lockFileVersion": "1.0.0",
+  "kiotaVersion": "1.32.1",
+  "clientClassName": "DocumentAPIClient",
+  "typeAccessModifier": "Public",
+  "clientNamespaceName": "DocumentAPI.Client",
+  "language": "CSharp",
+  "usesBackingStore": false,
+  "excludeBackwardCompatible": true,
+  "includeAdditionalData": true,
+  "disableSSLValidation": false,
+  "serializers": [
+    "Microsoft.Kiota.Serialization.Json.JsonSerializationWriterFactory",
+    "Microsoft.Kiota.Serialization.Text.TextSerializationWriterFactory",
+    "Microsoft.Kiota.Serialization.Form.FormSerializationWriterFactory",
+    "Microsoft.Kiota.Serialization.Multipart.MultipartSerializationWriterFactory"
+  ],
+  "deserializers": [
+    "Microsoft.Kiota.Serialization.Json.JsonParseNodeFactory",
+    "Microsoft.Kiota.Serialization.Text.TextParseNodeFactory",
+    "Microsoft.Kiota.Serialization.Form.FormParseNodeFactory"
+  ],
+  "structuredMimeTypes": [
+    "application/json",
+    "text/plain;q=0.9",
+    "application/x-www-form-urlencoded;q=0.2",
+    "multipart/form-data;q=0.1"
+  ],
+  "includePatterns": [],
+  "excludePatterns": [],
+  "disabledValidationRules": []
+}
