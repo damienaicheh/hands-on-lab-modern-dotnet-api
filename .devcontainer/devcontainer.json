@@ -18,6 +18,7 @@
         "ms-dotnettools.csdevkit",
         "hashicorp.terraform",
         "humao.rest-client",
+        "typespec.typespec-vscode",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "vitest.explorer"
