@@ -12,11 +12,6 @@ internal static class ApiVersionValidation
     /// </summary>
     public const string ParameterName = "api-version";
 
-    /// <summary>
-    /// Gets the API version query parameter description published in OpenAPI.
-    /// </summary>
-    public const string ParameterDescription = "The API version to use for this operation.";
-
     private const string MissingParameterMessage = "The api-version query parameter is required.";
 
     /// <summary>

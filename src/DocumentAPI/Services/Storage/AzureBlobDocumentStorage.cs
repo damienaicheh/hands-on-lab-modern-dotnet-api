@@ -1,6 +1,8 @@
 namespace DocumentAPI.Services.Storage;
 
+using System.Security.Cryptography;
 using Azure;
+using Azure.Core;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using DocumentAPI.Options;
@@ -24,7 +26,18 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
     {
         var storageOptions = options.Value.Storage;
         var credential = AzureIdentityCredentialFactory.Create(storageOptions.ManagedIdentityClientId);
-        var blobServiceClient = new BlobServiceClient(new Uri(storageOptions.ServiceUri), credential);
+        var blobOptions = new BlobClientOptions
+        {
+            Retry =
+            {
+                Delay = TimeSpan.FromSeconds(2),
+                MaxRetries = 5,
+                Mode = RetryMode.Exponential,
+                MaxDelay = TimeSpan.FromSeconds(10),
+                NetworkTimeout = TimeSpan.FromSeconds(100),
+            },
+        };
+        var blobServiceClient = new BlobServiceClient(new Uri(storageOptions.ServiceUri), credential, blobOptions);
         _containerClient = blobServiceClient.GetBlobContainerClient(storageOptions.ContainerName);
     }
 
@@ -36,17 +49,22 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
         var storageKey = CreateStorageKey(documentId, fileName);
         var blobClient = _containerClient.GetBlobClient(storageKey);
 
+        var expectedHash = ComputeMd5(content);
+
         await using var stream = new MemoryStream(content, writable: false);
-        await blobClient.UploadAsync(
+        var response = await blobClient.UploadAsync(
             stream,
             new BlobUploadOptions
             {
                 HttpHeaders = new BlobHttpHeaders
                 {
                     ContentType = string.IsNullOrWhiteSpace(fileName) ? "application/octet-stream" : null,
+                    ContentHash = expectedHash,
                 },
             },
             cancellationToken);
+
+        await VerifyContentIntegrityAsync(blobClient, storageKey, expectedHash, response.Value.ContentHash, cancellationToken);
 
         return storageKey;
     }
@@ -113,6 +131,37 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
         {
             _initializationLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Computes the MD5 hash of the document content used to verify storage integrity.
+    /// </summary>
+    private static byte[] ComputeMd5(byte[] content)
+    {
+        // MD5 is used solely to satisfy the Content-MD5 integrity contract of Azure Blob Storage, not for security.
+#pragma warning disable CA5351
+        return MD5.HashData(content);
+#pragma warning restore CA5351
+    }
+
+    /// <summary>
+    /// Verifies that the MD5 hash reported by Azure Blob Storage matches the locally computed hash and removes
+    /// the blob when a mismatch indicates the content was corrupted in transit.
+    /// </summary>
+    private static async Task VerifyContentIntegrityAsync(
+        BlobClient blobClient,
+        string storageKey,
+        byte[] expectedHash,
+        byte[]? storedHash,
+        CancellationToken cancellationToken)
+    {
+        if (storedHash is not null && CryptographicOperations.FixedTimeEquals(expectedHash, storedHash))
+        {
+            return;
+        }
+
+        await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
+        throw new DocumentStorageIntegrityException(storageKey, expectedHash, storedHash);
     }
 
     /// <summary>

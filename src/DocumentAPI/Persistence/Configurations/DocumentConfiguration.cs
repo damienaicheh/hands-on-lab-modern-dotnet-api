@@ -20,7 +20,7 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(document => document.ContentType).IsRequired().HasMaxLength(200);
         builder.Property(document => document.Title).HasMaxLength(512);
         builder.Property(document => document.Source).HasMaxLength(256);
-        builder.Property(document => document.ContentHash).IsRequired().IsFixedLength().HasMaxLength(64);
+        builder.Property(document => document.ContentHash).IsRequired().IsFixedLength().HasMaxLength(32);
         builder.Property(document => document.StorageKey).IsRequired().HasMaxLength(512);
 
         builder.Property(document => document.Tags).HasColumnName("TagsJson");

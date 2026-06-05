@@ -34,6 +34,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IDocumentActivityMonitor, ApplicationInsightsDocumentActivityMonitor>();
 
+        services.AddSingleton(DocumentResiliencePipeline.Create());
         services.AddSingleton<DocumentSearchCacheVersion>();
         services.AddTransient<IDocumentUploadValidator, DocumentUploadValidator>();
         services.AddScoped<IDocumentService, DocumentService>();

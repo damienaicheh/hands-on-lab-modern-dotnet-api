@@ -11,6 +11,7 @@ using DocumentAPI.Services.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Polly;
 
 /// <summary>
 /// Implements the document workflow used by the API.
@@ -21,6 +22,7 @@ internal sealed class DocumentService(
     IDocumentActivityMonitor activityMonitor,
     IMemoryCache cache,
     DocumentSearchCacheVersion cacheVersion,
+    ResiliencePipeline resiliencePipeline,
     IOptions<DocumentApiOptions> options) : IDocumentService
 {
     private readonly DocumentDbContext _dbContext = dbContext;
@@ -28,6 +30,7 @@ internal sealed class DocumentService(
     private readonly IDocumentActivityMonitor _activityMonitor = activityMonitor;
     private readonly IMemoryCache _cache = cache;
     private readonly DocumentSearchCacheVersion _cacheVersion = cacheVersion;
+    private readonly ResiliencePipeline _resiliencePipeline = resiliencePipeline;
     private readonly DocumentApiOptions _options = options.Value;
 
     /// <inheritdoc />
@@ -45,7 +48,9 @@ internal sealed class DocumentService(
         }
         else
         {
-            documents = await QueryDocumentsAsync(criteria, cancellationToken);
+            documents = await _resiliencePipeline.ExecuteAsync(
+                async token => await QueryDocumentsAsync(criteria, token),
+                cancellationToken);
             _cache.Set(
                 cacheKey,
                 documents,
@@ -65,10 +70,12 @@ internal sealed class DocumentService(
     public async Task<DocumentDto> UploadAsync(DocumentUploadCommand command, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var hash = Convert.ToHexString(SHA256.HashData(command.Content));
-        var existingDocument = await _dbContext.Documents
-            .AsNoTracking()
-            .FirstOrDefaultAsync(document => document.ContentHash == hash, cancellationToken);
+        var hash = ComputeContentHash(command.Content);
+        var existingDocument = await _resiliencePipeline.ExecuteAsync(
+            async token => await _dbContext.Documents
+                .AsNoTracking()
+                .FirstOrDefaultAsync(document => document.ContentHash == hash, token),
+            cancellationToken);
 
         if (existingDocument is not null)
         {
@@ -105,7 +112,9 @@ internal sealed class DocumentService(
             };
 
             _dbContext.Documents.Add(document);
-            await _dbContext.SaveChangesAsync(cancellationToken);
+            await _resiliencePipeline.ExecuteAsync(
+                async token => await _dbContext.SaveChangesAsync(token),
+                cancellationToken);
             _cacheVersion.Increment();
 
             var documentDto = ToDocumentDto(document);
@@ -120,9 +129,11 @@ internal sealed class DocumentService(
                 await _storage.DeleteAsync(storageKey, cancellationToken);
             }
 
-            var conflictingDocument = await _dbContext.Documents
-                .AsNoTracking()
-                .FirstOrDefaultAsync(document => document.ContentHash == hash, cancellationToken);
+            var conflictingDocument = await _resiliencePipeline.ExecuteAsync(
+                async token => await _dbContext.Documents
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(document => document.ContentHash == hash, token),
+                cancellationToken);
             var conflictingDocumentId = conflictingDocument?.Id ?? documentId;
 
             stopwatch.Stop();
@@ -139,9 +150,11 @@ internal sealed class DocumentService(
     public async Task<DocumentContentResult?> DownloadAsync(string id, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var document = await _dbContext.Documents
-            .AsNoTracking()
-            .FirstOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
+        var document = await _resiliencePipeline.ExecuteAsync(
+            async token => await _dbContext.Documents
+                .AsNoTracking()
+                .FirstOrDefaultAsync(candidate => candidate.Id == id, token),
+            cancellationToken);
 
         if (document is null)
         {
@@ -162,6 +175,17 @@ internal sealed class DocumentService(
         stopwatch.Stop();
         _activityMonitor.TrackDownloadSucceeded(document.Id, document.ContentType, document.Size, stopwatch.Elapsed.TotalMilliseconds);
         return new DocumentContentResult(document.FileName, document.ContentType, stream);
+    }
+
+    /// <summary>
+    /// Computes the MD5 content hash used to detect duplicate documents.
+    /// </summary>
+    private static string ComputeContentHash(byte[] content)
+    {
+        // MD5 is used to align the duplicate-detection hash with the Content-MD5 integrity contract, not for security.
+#pragma warning disable CA5351
+        return Convert.ToHexString(MD5.HashData(content));
+#pragma warning restore CA5351
     }
 
     /// <summary>
