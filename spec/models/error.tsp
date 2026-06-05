@@ -15,3 +15,28 @@ model UnauthorizedError {
   code: "UNAUTHORIZED";
   message: string;
 }
+
+model BadRequestErrorResponse {
+  ...BadRequestResponse;
+  ...Body<Error>;
+}
+
+model NotFoundErrorResponse {
+  ...NotFoundResponse;
+  ...Body<Error>;
+}
+
+model ConflictErrorResponse {
+  @statusCode statusCode: 409;
+  @body body: Error;
+}
+
+model PayloadTooLargeErrorResponse {
+  @statusCode statusCode: 413;
+  @body body: Error;
+}
+
+model UnauthorizedErrorResponse {
+  ...UnauthorizedResponse;
+  ...Body<UnauthorizedError>;
+}

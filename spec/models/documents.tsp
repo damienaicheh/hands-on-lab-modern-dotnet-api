@@ -40,18 +40,3 @@ model DocumentDownloadResponse {
   ...OkResponse;
   ...Body<File<SupportedDocumentContentType>>;
 }
-
-model DocumentErrorResponse {
-  ...BadRequestResponse;
-  ...Body<Error>;
-}
-
-model DocumentNotFoundResponse {
-  ...NotFoundResponse;
-  ...Body<Error>;
-}
-
-model DocumentUnauthorizedResponse {
-  ...UnauthorizedResponse;
-  ...Body<UnauthorizedError>;
-}
