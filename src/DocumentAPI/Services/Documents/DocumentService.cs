@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using DocumentAPI.DTOs;
 using DocumentAPI.Entities;
+using DocumentAPI.Helpers;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Documents.Exceptions;
@@ -69,7 +70,7 @@ internal sealed class DocumentService(
     public async Task<DocumentDto> UploadAsync(DocumentUploadCommand command, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var hash = ComputeContentHash(command.Content);
+        var hash = FileHelper.ComputeContentHash(command.Content);
         var existingDocument = await _resiliencePipeline.ExecuteAsync(
             async token => await _dbContext.Documents
                 .AsNoTracking()
@@ -178,17 +179,6 @@ internal sealed class DocumentService(
         stopwatch.Stop();
         _activityMonitor.TrackDownloadSucceeded(document.Id, document.ContentType, document.Size, stopwatch.Elapsed.TotalMilliseconds);
         return new DocumentContentResult(document.FileName, document.ContentType, stream);
-    }
-
-    /// <summary>
-    /// Computes the MD5 content hash used to detect duplicate documents.
-    /// </summary>
-    private static string ComputeContentHash(byte[] content)
-    {
-        // MD5 is used to align the duplicate-detection hash with the Content-MD5 integrity contract, not for security.
-#pragma warning disable CA5351
-        return Convert.ToHexString(MD5.HashData(content));
-#pragma warning restore CA5351
     }
 
     /// <summary>

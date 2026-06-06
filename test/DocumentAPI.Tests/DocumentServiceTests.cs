@@ -6,6 +6,7 @@ using DocumentAPI.DTOs;
 using DocumentAPI.Entities;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
+using DocumentAPI.Helpers;
 using DocumentAPI.Services.Documents;
 using DocumentAPI.Services.Documents.Exceptions;
 using DocumentAPI.Services.Monitoring;
@@ -38,7 +39,7 @@ public sealed class DocumentServiceTests
                 Description = "Minimal API lab",
                 Source = "unit-test",
                 Tags = ["lab", "notes"],
-                ContentHash = ComputeHash(Encoding.UTF8.GetBytes("hello world")),
+                ContentHash = FileHelper.ComputeContentHash(Encoding.UTF8.GetBytes("hello world")),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -112,7 +113,7 @@ public sealed class DocumentServiceTests
                 FileName = "existing.txt",
                 ContentType = "text/plain",
                 Size = duplicateBytes.Length,
-                ContentHash = ComputeHash(duplicateBytes),
+                ContentHash = FileHelper.ComputeContentHash(duplicateBytes),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -165,7 +166,7 @@ public sealed class DocumentServiceTests
         var service = CreateService(dbContext, storage, activityMonitor);
 
         var content = Encoding.UTF8.GetBytes("stored-content");
-        var contentHash = ComputeHash(content);
+        var contentHash = FileHelper.ComputeContentHash(content);
         storage.Seed(contentHash, content);
 
         dbContext.Documents.Add(
@@ -223,13 +224,6 @@ public sealed class DocumentServiceTests
             .Options;
 
         return new DocumentDbContext(options);
-    }
-
-    private static string ComputeHash(byte[] content)
-    {
-#pragma warning disable CA5351
-        return Convert.ToHexString(MD5.HashData(content));
-#pragma warning restore CA5351
     }
 
     private sealed class RecordingActivityMonitor : IDocumentActivityMonitor

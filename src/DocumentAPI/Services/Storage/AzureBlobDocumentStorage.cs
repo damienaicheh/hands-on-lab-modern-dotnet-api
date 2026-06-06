@@ -6,6 +6,7 @@ using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using DocumentAPI.Helpers;
 using DocumentAPI.Options;
 using Microsoft.Extensions.Options;
 
@@ -48,7 +49,7 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
 
         var blobClient = _containerClient.GetBlobClient(contentHash);
 
-        var expectedHash = ComputeMd5(content);
+        var expectedHash = FileHelper.ComputeMd5(content);
 
         await using var stream = new MemoryStream(content, writable: false);
         var response = await blobClient.UploadAsync(
@@ -127,17 +128,6 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
         {
             _initializationLock.Release();
         }
-    }
-
-    /// <summary>
-    /// Computes the MD5 hash of the document content used to verify storage integrity.
-    /// </summary>
-    private static byte[] ComputeMd5(byte[] content)
-    {
-        // MD5 is used solely to satisfy the Content-MD5 integrity contract of Azure Blob Storage, not for security.
-#pragma warning disable CA5351
-        return MD5.HashData(content);
-#pragma warning restore CA5351
     }
 
     /// <summary>
