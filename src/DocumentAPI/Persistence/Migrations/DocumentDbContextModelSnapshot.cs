@@ -10,9 +10,16 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DocumentAPI.Persistence.Migrations
 {
+    /// <summary>
+    /// Auto-generated snapshot of the latest EF Core model.
+    /// EF Core compares this file with the current DbContext model when creating the next migration.
+    /// </summary>
     [DbContext(typeof(DocumentDbContext))]
     partial class DocumentDbContextModelSnapshot : ModelSnapshot
     {
+        /// <summary>
+        /// Reconstructs the current model used as the diff baseline for migration scaffolding.
+        /// </summary>
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -72,7 +79,7 @@ namespace DocumentAPI.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Documents_ContentHash");
 
-                    b.ToTable("Documents", "dbo");
+                    b.ToTable(PersistenceModelConstants.DocumentsTable, PersistenceModelConstants.DefaultSchema);
                 });
 #pragma warning restore 612, 618
         }

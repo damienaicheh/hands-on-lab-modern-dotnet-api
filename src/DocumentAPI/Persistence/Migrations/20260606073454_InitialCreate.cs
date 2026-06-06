@@ -1,22 +1,28 @@
 ﻿using System;
+using DocumentAPI.Persistence;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace DocumentAPI.Persistence.Migrations
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Baseline migration that creates the initial relational schema for document metadata.
+    /// This file contains the executable database operations used when applying or rolling back the migration.
+    /// </summary>
     public partial class InitialCreate : Migration
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Applies the initial schema by creating the documents table and its unique content-hash index.
+        /// </summary>
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.EnsureSchema(
-                name: "dbo");
+                name: PersistenceModelConstants.DefaultSchema);
 
             migrationBuilder.CreateTable(
-                name: "Documents",
-                schema: "dbo",
+                name: PersistenceModelConstants.DocumentsTable,
+                schema: PersistenceModelConstants.DefaultSchema,
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
@@ -37,18 +43,20 @@ namespace DocumentAPI.Persistence.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_Documents_ContentHash",
-                schema: "dbo",
-                table: "Documents",
+                schema: PersistenceModelConstants.DefaultSchema,
+                table: PersistenceModelConstants.DocumentsTable,
                 column: "ContentHash",
                 unique: true);
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Reverts the initial schema by dropping the documents table.
+        /// </summary>
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Documents",
-                schema: "dbo");
+                name: PersistenceModelConstants.DocumentsTable,
+                schema: PersistenceModelConstants.DefaultSchema);
         }
     }
 }

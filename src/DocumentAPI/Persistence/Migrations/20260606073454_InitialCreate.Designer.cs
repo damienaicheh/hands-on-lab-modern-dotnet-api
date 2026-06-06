@@ -11,11 +11,17 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DocumentAPI.Persistence.Migrations
 {
+    /// <summary>
+    /// Auto-generated metadata companion for the InitialCreate migration.
+    /// EF Core tooling uses this model snapshot of the migration to compute future diffs accurately.
+    /// </summary>
     [DbContext(typeof(DocumentDbContext))]
     [Migration("20260606073454_InitialCreate")]
     partial class InitialCreate
     {
-        /// <inheritdoc />
+        /// <summary>
+        /// Builds the EF Core model shape associated with this specific migration state.
+        /// </summary>
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -75,7 +81,7 @@ namespace DocumentAPI.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_Documents_ContentHash");
 
-                    b.ToTable("Documents", "dbo");
+                    b.ToTable(PersistenceModelConstants.DocumentsTable, PersistenceModelConstants.DefaultSchema);
                 });
 #pragma warning restore 612, 618
         }

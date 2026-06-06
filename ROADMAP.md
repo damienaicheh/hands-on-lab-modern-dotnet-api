@@ -35,8 +35,6 @@ Diagram de sequence des appels d'API
 ## TODO
 
 Vérifier retry pattern pour l'upload du document dans le Storage Account
-Vérifier les champs de la BDD s'il n'y a pas des données inutiles
-Dans le dossier Pesistance je vois "Documents", "dbo" partout il faut faire une contante globale pour éviter la répétition
 Vérifier les cas d'erreurs
 Vérifier si les commentaires sont tous bons
 Vérifier s'il n'y a pas de code mort

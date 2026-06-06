@@ -12,7 +12,7 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
     /// <inheritdoc />
     public void Configure(EntityTypeBuilder<Document> builder)
     {
-        builder.ToTable("Documents", "dbo");
+        builder.ToTable(PersistenceModelConstants.DocumentsTable, PersistenceModelConstants.DefaultSchema);
 
         builder.HasKey(document => document.Id);
         builder.Property(document => document.Id).HasMaxLength(64);
