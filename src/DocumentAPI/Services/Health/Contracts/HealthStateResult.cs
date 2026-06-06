@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Health;
+namespace DocumentAPI.Services.Health.Contracts;
 
 /// <summary>
 /// Represents the evaluated health state of the service.

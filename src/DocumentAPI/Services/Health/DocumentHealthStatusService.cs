@@ -1,6 +1,7 @@
 namespace DocumentAPI.Services.Health;
 
 using DocumentAPI.Persistence;
+using DocumentAPI.Services.Health.Contracts;
 using DocumentAPI.Services.Storage;
 using Microsoft.EntityFrameworkCore;
 

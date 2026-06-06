@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Documents;
+namespace DocumentAPI.Services.Validators.Documents;
 
 using DocumentAPI.DTOs;
 using DocumentAPI.Models;

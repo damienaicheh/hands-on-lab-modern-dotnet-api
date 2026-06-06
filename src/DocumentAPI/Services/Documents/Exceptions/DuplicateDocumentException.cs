@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Documents;
+namespace DocumentAPI.Services.Documents.Exceptions;
 
 /// <summary>
 /// Represents an upload failure caused by an already existing document with the same content.

@@ -7,6 +7,7 @@ using DocumentAPI.Services.Documents;
 using DocumentAPI.Services.Health;
 using DocumentAPI.Services.Monitoring;
 using DocumentAPI.Services.Storage;
+using DocumentAPI.Services.Validators.Documents;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 

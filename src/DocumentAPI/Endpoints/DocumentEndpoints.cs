@@ -4,6 +4,8 @@ using System.Text.Json;
 using DocumentAPI.DTOs;
 using DocumentAPI.Models;
 using DocumentAPI.Services.Documents;
+using DocumentAPI.Services.Documents.Exceptions;
+using DocumentAPI.Services.Validators.Documents;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
 

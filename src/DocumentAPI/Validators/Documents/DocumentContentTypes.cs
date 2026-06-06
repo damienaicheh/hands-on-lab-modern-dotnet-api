@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Documents;
+namespace DocumentAPI.Services.Validators.Documents;
 
 /// <summary>
 /// Centralizes the document MIME types supported by the API.

@@ -1,3 +1,5 @@
+using DocumentAPI.Services.Health.Contracts;
+
 namespace DocumentAPI.Services.Health;
 
 /// <summary>
