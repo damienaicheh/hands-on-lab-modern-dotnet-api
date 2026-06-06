@@ -1,7 +1,7 @@
 namespace DocumentAPI.Services.Documents;
 
+using Azure;
 using System.Diagnostics;
-using System.Security.Cryptography;
 using DocumentAPI.DTOs;
 using DocumentAPI.Entities;
 using DocumentAPI.Helpers;
@@ -12,6 +12,7 @@ using DocumentAPI.Services.Monitoring;
 using DocumentAPI.Services.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
 
@@ -25,7 +26,8 @@ internal sealed class DocumentService(
     IMemoryCache cache,
     DocumentSearchCacheVersion cacheVersion,
     ResiliencePipeline resiliencePipeline,
-    IOptions<DocumentApiOptions> options) : IDocumentService
+    IOptions<DocumentApiOptions> options,
+    ILogger<DocumentService> logger) : IDocumentService
 {
     private readonly DocumentDbContext _dbContext = dbContext;
     private readonly IDocumentStorageService _storage = storage;
@@ -34,36 +36,55 @@ internal sealed class DocumentService(
     private readonly DocumentSearchCacheVersion _cacheVersion = cacheVersion;
     private readonly ResiliencePipeline _resiliencePipeline = resiliencePipeline;
     private readonly DocumentApiOptions _options = options.Value;
+    private readonly ILogger<DocumentService> _logger = logger;
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<DocumentDto>> SearchAsync(DocumentSearchCriteria criteria, CancellationToken cancellationToken)
     {
-        var cacheKey = CreateCacheKey(_cacheVersion.Current, criteria);
+        var stopwatch = Stopwatch.StartNew();
 
-        var cacheHit = _cache.TryGetValue(cacheKey, out IReadOnlyList<DocumentDto>? cachedDocuments) && cachedDocuments is not null;
-        IReadOnlyList<DocumentDto> documents;
-
-        if (cacheHit)
+        try
         {
-            documents = cachedDocuments!;
+            var cacheKey = CreateCacheKey(_cacheVersion.Current, criteria);
+
+            var cacheHit = _cache.TryGetValue(cacheKey, out IReadOnlyList<DocumentDto>? cachedDocuments) && cachedDocuments is not null;
+            IReadOnlyList<DocumentDto> documents;
+
+            if (cacheHit)
+            {
+                documents = cachedDocuments!;
+            }
+            else
+            {
+                documents = await _resiliencePipeline.ExecuteAsync(
+                    async token => await QueryDocumentsAsync(criteria, token),
+                    cancellationToken);
+                _cache.Set(
+                    cacheKey,
+                    documents,
+                    new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.Search.CacheTtlSeconds)),
+                    });
+            }
+
+            _activityMonitor.TrackSearch(criteria, documents.Count, cacheHit);
+
+            return documents;
         }
-        else
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            documents = await _resiliencePipeline.ExecuteAsync(
-                async token => await QueryDocumentsAsync(criteria, token),
-                cancellationToken);
-            _cache.Set(
-                cacheKey,
-                documents,
-                new MemoryCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.Search.CacheTtlSeconds)),
-                });
+            stopwatch.Stop();
+            _logger.LogError(
+                exception,
+                "Document search failed. DurationMs={DurationMs} HasQuery={HasQuery} HasTitleFilter={HasTitleFilter} HasTagFilter={HasTagFilter} HasContentTypeFilter={HasContentTypeFilter}",
+                stopwatch.Elapsed.TotalMilliseconds,
+                !string.IsNullOrWhiteSpace(criteria.Query),
+                !string.IsNullOrWhiteSpace(criteria.Title),
+                !string.IsNullOrWhiteSpace(criteria.Tag),
+                !string.IsNullOrWhiteSpace(criteria.ContentType));
+            throw;
         }
-
-        _activityMonitor.TrackSearch(criteria, documents.Count, cacheHit);
-
-        return documents;
     }
 
     /// <inheritdoc />
@@ -122,7 +143,33 @@ internal sealed class DocumentService(
             _activityMonitor.TrackUploadSucceeded(documentDto, stopwatch.Elapsed.TotalMilliseconds);
             return documentDto;
         }
-        catch (DbUpdateException)
+        catch (DocumentStorageIntegrityException exception)
+        {
+            stopwatch.Stop();
+            _logger.LogError(
+                exception,
+                "Document upload failed due to storage integrity validation. ContentHash={ContentHash} FileName={FileName} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
+                hash,
+                command.FileName,
+                command.ContentType,
+                command.Content.LongLength,
+                stopwatch.Elapsed.TotalMilliseconds);
+            throw;
+        }
+        catch (RequestFailedException exception)
+        {
+            stopwatch.Stop();
+            _logger.LogError(
+                exception,
+                "Document upload failed due to storage dependency error. ContentHash={ContentHash} FileName={FileName} StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode} DurationMs={DurationMs}",
+                hash,
+                command.FileName,
+                exception.Status,
+                exception.ErrorCode,
+                stopwatch.Elapsed.TotalMilliseconds);
+            throw;
+        }
+        catch (DbUpdateException exception)
         {
             var conflictingDocument = await _resiliencePipeline.ExecuteAsync(
                 async token => await _dbContext.Documents
@@ -134,9 +181,26 @@ internal sealed class DocumentService(
             {
                 if (blobUploaded)
                 {
-                    await _storage.DeleteAsync(hash, cancellationToken);
+                    try
+                    {
+                        await _storage.DeleteAsync(hash, cancellationToken);
+                    }
+                    catch (Exception cleanupException) when (cleanupException is not OperationCanceledException)
+                    {
+                        _logger.LogWarning(
+                            cleanupException,
+                            "Document upload cleanup failed while deleting blob after a database error. ContentHash={ContentHash}",
+                            hash);
+                    }
                 }
 
+                stopwatch.Stop();
+                _logger.LogError(
+                    exception,
+                    "Document upload failed due to a database error without duplicate match. ContentHash={ContentHash} FileName={FileName} DurationMs={DurationMs}",
+                    hash,
+                    command.FileName,
+                    stopwatch.Elapsed.TotalMilliseconds);
                 throw;
             }
 
@@ -148,37 +212,86 @@ internal sealed class DocumentService(
                 stopwatch.Elapsed.TotalMilliseconds);
             throw new DuplicateDocumentException(conflictingDocument.Id);
         }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            stopwatch.Stop();
+            _logger.LogError(
+                exception,
+                "Document upload failed unexpectedly. ContentHash={ContentHash} FileName={FileName} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
+                hash,
+                command.FileName,
+                command.ContentType,
+                command.Content.LongLength,
+                stopwatch.Elapsed.TotalMilliseconds);
+            throw;
+        }
     }
 
     /// <inheritdoc />
     public async Task<DocumentContentResult?> DownloadAsync(string id, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var document = await _resiliencePipeline.ExecuteAsync(
-            async token => await _dbContext.Documents
-                .AsNoTracking()
-                .FirstOrDefaultAsync(candidate => candidate.Id == id, token),
-            cancellationToken);
 
-        if (document is null)
+        try
+        {
+            var document = await _resiliencePipeline.ExecuteAsync(
+                async token => await _dbContext.Documents
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(candidate => candidate.Id == id, token),
+                cancellationToken);
+
+            if (document is null)
+            {
+                stopwatch.Stop();
+                _activityMonitor.TrackDownloadNotFound(id, stopwatch.Elapsed.TotalMilliseconds);
+                return null;
+            }
+
+            var stream = await _storage.OpenReadAsync(document.ContentHash, cancellationToken);
+
+            if (stream is null)
+            {
+                stopwatch.Stop();
+                _activityMonitor.TrackDownloadNotFound(id, stopwatch.Elapsed.TotalMilliseconds);
+                return null;
+            }
+
+            stopwatch.Stop();
+            _activityMonitor.TrackDownloadSucceeded(document.Id, document.ContentType, document.Size, stopwatch.Elapsed.TotalMilliseconds);
+            return new DocumentContentResult(document.FileName, document.ContentType, stream);
+        }
+        catch (DocumentStorageIntegrityException exception)
         {
             stopwatch.Stop();
-            _activityMonitor.TrackDownloadNotFound(id, stopwatch.Elapsed.TotalMilliseconds);
-            return null;
+            _logger.LogError(
+                exception,
+                "Document download failed due to storage integrity validation. DocumentId={DocumentId} DurationMs={DurationMs}",
+                id,
+                stopwatch.Elapsed.TotalMilliseconds);
+            throw;
         }
-
-        var stream = await _storage.OpenReadAsync(document.ContentHash, cancellationToken);
-
-        if (stream is null)
+        catch (RequestFailedException exception)
         {
             stopwatch.Stop();
-            _activityMonitor.TrackDownloadNotFound(id, stopwatch.Elapsed.TotalMilliseconds);
-            return null;
+            _logger.LogError(
+                exception,
+                "Document download failed due to storage dependency error. DocumentId={DocumentId} StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode} DurationMs={DurationMs}",
+                id,
+                exception.Status,
+                exception.ErrorCode,
+                stopwatch.Elapsed.TotalMilliseconds);
+            throw;
         }
-
-        stopwatch.Stop();
-        _activityMonitor.TrackDownloadSucceeded(document.Id, document.ContentType, document.Size, stopwatch.Elapsed.TotalMilliseconds);
-        return new DocumentContentResult(document.FileName, document.ContentType, stream);
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            stopwatch.Stop();
+            _logger.LogError(
+                exception,
+                "Document download failed unexpectedly. DocumentId={DocumentId} DurationMs={DurationMs}",
+                id,
+                stopwatch.Elapsed.TotalMilliseconds);
+            throw;
+        }
     }
 
     /// <summary>
