@@ -14,9 +14,4 @@ public sealed class DocumentStorageOptions
     /// Gets or sets the blob container name used for document content.
     /// </summary>
     public string ContainerName { get; set; } = "documents";
-
-    /// <summary>
-    /// Gets or sets the optional client identifier of the user-assigned managed identity used for Azure Blob access.
-    /// </summary>
-    public string ManagedIdentityClientId { get; set; } = string.Empty;
 }

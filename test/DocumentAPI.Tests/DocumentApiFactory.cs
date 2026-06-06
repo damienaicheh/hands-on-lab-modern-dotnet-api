@@ -76,7 +76,8 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
                 ["DocumentApi:Upload:MaxFileSizeBytes"] = "10485760",
                 ["DocumentApi:Storage:ServiceUri"] = "https://tests.blob.core.windows.net/",
                 ["DocumentApi:Storage:ContainerName"] = "documents",
-                ["DocumentApi:Storage:ManagedIdentityClientId"] = "",
+                ["DocumentApi:Database:ServiceUri"] = "https://tests.database.windows.net",
+                ["DocumentApi:Database:DatabaseName"] = "DocumentApiTests",
                 ["DocumentApi:Search:CacheTtlSeconds"] = "60",
             };
 

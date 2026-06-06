@@ -1,6 +1,14 @@
 # Default endpoint address for local testing
-@authority=http://localhost:7071
+@authority=http://localhost:5222
+
+### Get root endpoint to verify service is running
+GET {{authority}}/
+Content-Type: text/plain
 
 ### Get health status of the service
-POST {{authority}}/health
+GET {{authority}}/health
+Content-Type: text/plain
+
+### Get OpenAPI specification document
+GET {{authority}}/swagger/v1/swagger.json
 Content-Type: text/plain

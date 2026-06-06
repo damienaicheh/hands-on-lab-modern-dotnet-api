@@ -3,10 +3,10 @@ namespace DocumentAPI.Services.Storage;
 using System.Security.Cryptography;
 using Azure;
 using Azure.Core;
+using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using DocumentAPI.Options;
-using DocumentAPI.Services.Identity;
 using Microsoft.Extensions.Options;
 
 /// <summary>
@@ -25,7 +25,7 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
     public AzureBlobDocumentStorage(IOptions<DocumentApiOptions> options)
     {
         var storageOptions = options.Value.Storage;
-        var credential = AzureIdentityCredentialFactory.Create(storageOptions.ManagedIdentityClientId);
+        var credential = new DefaultAzureCredential();
         var blobOptions = new BlobClientOptions
         {
             Retry =

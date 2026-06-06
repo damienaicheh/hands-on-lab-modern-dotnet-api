@@ -1,10 +1,10 @@
 namespace DocumentAPI.Services;
 
+using Azure.Identity;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Documents;
 using DocumentAPI.Services.Health;
-using DocumentAPI.Services.Identity;
 using DocumentAPI.Services.Monitoring;
 using DocumentAPI.Services.Storage;
 using Microsoft.Data.SqlClient;
@@ -56,32 +56,65 @@ public static class DependencyInjection
     /// </summary>
     private static void ConfigureDatabase(DbContextOptionsBuilder builder, DocumentDatabaseOptions databaseOptions)
     {
-        if (string.IsNullOrWhiteSpace(databaseOptions.ConnectionString))
+        if (string.IsNullOrWhiteSpace(databaseOptions.ServiceUri))
         {
-            throw new InvalidOperationException("DocumentApi:Database:ConnectionString must be configured.");
+            throw new InvalidOperationException("DocumentApi:Database:ServiceUri must be configured.");
         }
 
-        var credential = AzureIdentityCredentialFactory.Create(databaseOptions.ManagedIdentityClientId);
+        if (string.IsNullOrWhiteSpace(databaseOptions.DatabaseName))
+        {
+            throw new InvalidOperationException("DocumentApi:Database:DatabaseName must be configured.");
+        }
+
+        var credential = new DefaultAzureCredential();
         builder
-            .UseSqlServer(NormalizeSqlConnectionString(databaseOptions.ConnectionString))
+            .UseSqlServer(CreateSqlConnectionStringFromSettings(databaseOptions.ServiceUri, databaseOptions.DatabaseName))
             .AddInterceptors(new AzureSqlAuthenticationInterceptor(credential));
     }
 
     /// <summary>
-    /// Removes any embedded SQL credentials so the Microsoft Entra ID access token can be applied by the interceptor.
+    /// Creates an Azure SQL connection string from the SQL server URI and database name.
     /// </summary>
-    private static string NormalizeSqlConnectionString(string connectionString)
+    private static string CreateSqlConnectionStringFromSettings(string serviceUri, string databaseName)
     {
-        var builder = new SqlConnectionStringBuilder(connectionString);
-
-        if (!string.IsNullOrWhiteSpace(builder.UserID) || !string.IsNullOrWhiteSpace(builder.Password))
+        if (!Uri.TryCreate(serviceUri, UriKind.Absolute, out var uri))
         {
-            throw new InvalidOperationException("DocumentApi:Database:ConnectionString must not contain SQL credentials. Use Microsoft Entra ID or a managed identity instead.");
+            throw new InvalidOperationException("DocumentApi:Database:ServiceUri must be a valid absolute URI.");
         }
 
-        builder.Remove("User ID");
-        builder.Remove("Password");
-        builder.Remove("Authentication");
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("DocumentApi:Database:ServiceUri must use the https scheme.");
+        }
+
+        if (string.IsNullOrWhiteSpace(uri.Host))
+        {
+            throw new InvalidOperationException("DocumentApi:Database:ServiceUri must include a SQL Server host.");
+        }
+
+        if (!string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
+        {
+            throw new InvalidOperationException("DocumentApi:Database:ServiceUri must not contain query string or fragment.");
+        }
+
+        if (!string.IsNullOrEmpty(uri.AbsolutePath) && uri.AbsolutePath != "/")
+        {
+            throw new InvalidOperationException("DocumentApi:Database:ServiceUri must not include a database path. Configure the database in DocumentApi:Database:DatabaseName.");
+        }
+
+        if (databaseName.Contains('/'))
+        {
+            throw new InvalidOperationException("DocumentApi:Database:DatabaseName must be a single name without '/'.");
+        }
+
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = uri.IsDefaultPort ? uri.Host : $"{uri.Host},{uri.Port}",
+            InitialCatalog = Uri.UnescapeDataString(databaseName),
+            Encrypt = true,
+            TrustServerCertificate = false,
+            ConnectTimeout = 30,
+        };
 
         return builder.ConnectionString;
     }

@@ -104,6 +104,7 @@ builder.Services.AddSwaggerGen(options =>
 		[new OpenApiSecuritySchemeReference("Bearer", hostDocument: document, externalResource: null)] = [],
 	});
 
+	// Include XML comments if available for better Swagger documentation.
 	var xmlFileName = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
 	var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFileName);
 
@@ -135,10 +136,6 @@ app.UseHttpLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.MapGet("/", () => Results.Ok(new { service = "DocumentAPI", runtime = ".NET 10 Minimal API" }))
-	.AllowAnonymous()
-	.ExcludeFromDescription();
 
 app.MapHealthEndpoints();
 app.MapDocumentEndpoints();

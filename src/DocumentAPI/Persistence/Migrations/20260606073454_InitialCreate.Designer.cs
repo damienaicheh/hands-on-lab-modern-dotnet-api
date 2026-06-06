@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DocumentAPI.Persistence.Migrations
 {
     [DbContext(typeof(DocumentDbContext))]
-    [Migration("20260605142549_InitialCreate")]
+    [Migration("20260606073454_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -33,8 +33,8 @@ namespace DocumentAPI.Persistence.Migrations
 
                     b.Property<string>("ContentHash")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nchar(64)")
+                        .HasMaxLength(32)
+                        .HasColumnType("nchar(32)")
                         .IsFixedLength();
 
                     b.Property<string>("ContentType")

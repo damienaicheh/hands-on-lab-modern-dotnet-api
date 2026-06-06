@@ -6,13 +6,13 @@ namespace DocumentAPI.Options;
 public sealed class DocumentDatabaseOptions
 {
     /// <summary>
-    /// Gets or sets the SQL Server connection string used for metadata persistence.
-    /// The value should identify the server and database only, without embedded credentials.
+    /// Gets or sets the SQL Database server URI used for metadata persistence.
+    /// Use the format <c>https://&lt;sql-server-name&gt;.database.windows.net</c>.
     /// </summary>
-    public string ConnectionString { get; set; } = string.Empty;
+    public string ServiceUri { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the optional client identifier of the user-assigned managed identity used for SQL Server access.
+    /// Gets or sets the SQL Database name used for metadata persistence.
     /// </summary>
-    public string ManagedIdentityClientId { get; set; } = string.Empty;
+    public string DatabaseName { get; set; } = string.Empty;
 }
