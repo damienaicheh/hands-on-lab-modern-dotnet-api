@@ -22,7 +22,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
 {
     private const string Issuer = "DocumentAPI";
     private const string Audience = "DocumentAPIClient";
-    private const string SigningKey = "document-api-dev-signing-key-change-me";
+    private const string SigningKey = "document-api-signing-key-to-randomly-generate";
 
     private readonly IReadOnlyDictionary<string, string?> _configurationOverrides;
     private readonly string _databaseConnectionString;

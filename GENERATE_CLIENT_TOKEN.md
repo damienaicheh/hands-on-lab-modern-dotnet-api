@@ -13,7 +13,7 @@ The API validates the following:
 Current configuration:
 - Issuer: DocumentAPI
 - Audience: DocumentAPIClient
-- Signing key: document-api-dev-signing-key-change-me
+- Signing key: document-api-signing-key-to-randomly-generate
 - Expected algorithm: HS256
 - Clock skew tolerance: 1 minute
 
@@ -47,7 +47,7 @@ Current configuration:
     - This is intentionally long-lived for testing purposes.
 
 5. In Verify Signature:
-- Set the secret to: document-api-dev-signing-key-change-me
+- Set the secret to: document-api-signing-key-to-randomly-generate
 - Make sure Secret base64 encoded is disabled
 
 6. Copy the token from the Encoded section.

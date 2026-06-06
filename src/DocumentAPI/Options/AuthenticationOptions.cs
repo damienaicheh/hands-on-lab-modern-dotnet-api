@@ -18,5 +18,5 @@ public sealed class AuthenticationOptions
     /// <summary>
     /// Gets or sets the symmetric signing key used to validate bearer tokens.
     /// </summary>
-    public string SigningKey { get; set; } = "document-api-dev-signing-key-change-me";
+    public string SigningKey { get; set; } = "document-api-signing-key-to-randomly-generate";
 }
