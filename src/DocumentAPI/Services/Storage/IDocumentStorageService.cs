@@ -3,7 +3,7 @@ namespace DocumentAPI.Services.Storage;
 /// <summary>
 /// Defines the contract used to persist and retrieve document binary content.
 /// </summary>
-public interface IDocumentStorage
+public interface IDocumentStorageService
 {
     /// <summary>
     /// Persists document binary content using its deterministic content hash as the blob identifier.

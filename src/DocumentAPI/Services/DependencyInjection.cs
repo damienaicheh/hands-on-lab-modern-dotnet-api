@@ -26,13 +26,18 @@ public static class DependencyInjection
     {
         services.AddDbContext<DocumentDbContext>(builder => ConfigureDatabase(builder, options.Database));
 
-        services.AddSingleton<IDocumentStorage, AzureBlobDocumentStorage>();
+        // Use Singleton for shared stateless infrastructure
+        services.AddSingleton<IDocumentStorageService, AzureBlobDocumentStorageService>();
 
         services.AddSingleton<IDocumentActivityMonitor, ApplicationInsightsDocumentActivityMonitor>();
 
         services.AddSingleton(DocumentResiliencePipeline.Create());
         services.AddSingleton<DocumentSearchCacheVersion>();
+
+        // Transient: the validator is lightweight and stateless, so a fresh instance per resolution avoids carrying mutable state across calls.
         services.AddTransient<IDocumentUploadValidator, DocumentUploadValidator>();
+        
+        // Scoped: these services depend on a request-scoped DocumentDbContext, so sharing one instance per request keeps a consistent unit-of-work and avoids lifetime mismatches.
         services.AddScoped<IDocumentService, DocumentService>();
         services.AddScoped<IHealthStatusService, DocumentHealthStatusService>();
 

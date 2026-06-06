@@ -13,17 +13,17 @@ using Microsoft.Extensions.Options;
 /// <summary>
 /// Stores and retrieves document content from Azure Blob Storage.
 /// </summary>
-public sealed class AzureBlobDocumentStorage : IDocumentStorage
+public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
 {
     private readonly BlobContainerClient _containerClient;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private volatile bool _initialized;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AzureBlobDocumentStorage" /> class.
+    /// Initializes a new instance of the <see cref="AzureBlobDocumentStorageService" /> class.
     /// </summary>
     /// <param name="options">The bound document API options.</param>
-    public AzureBlobDocumentStorage(IOptions<DocumentApiOptions> options)
+    public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
     {
         var storageOptions = options.Value.Storage;
         var credential = new DefaultAzureCredential();

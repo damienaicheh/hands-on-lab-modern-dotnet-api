@@ -20,7 +20,7 @@ using Polly;
 /// </summary>
 internal sealed class DocumentService(
     DocumentDbContext dbContext,
-    IDocumentStorage storage,
+    IDocumentStorageService storage,
     IDocumentActivityMonitor activityMonitor,
     IMemoryCache cache,
     DocumentSearchCacheVersion cacheVersion,
@@ -28,7 +28,7 @@ internal sealed class DocumentService(
     IOptions<DocumentApiOptions> options) : IDocumentService
 {
     private readonly DocumentDbContext _dbContext = dbContext;
-    private readonly IDocumentStorage _storage = storage;
+    private readonly IDocumentStorageService _storage = storage;
     private readonly IDocumentActivityMonitor _activityMonitor = activityMonitor;
     private readonly IMemoryCache _cache = cache;
     private readonly DocumentSearchCacheVersion _cacheVersion = cacheVersion;

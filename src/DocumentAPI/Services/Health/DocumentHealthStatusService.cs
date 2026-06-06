@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore;
 /// <summary>
 /// Computes the service health state from the configured storage and database providers.
 /// </summary>
-internal sealed class DocumentHealthStatusService(IDocumentStorage storage, DocumentDbContext dbContext) : IHealthStatusService
+internal sealed class DocumentHealthStatusService(IDocumentStorageService storage, DocumentDbContext dbContext) : IHealthStatusService
 {
-    private readonly IDocumentStorage _storage = storage;
+    private readonly IDocumentStorageService _storage = storage;
     private readonly DocumentDbContext _dbContext = dbContext;
 
     /// <inheritdoc />
