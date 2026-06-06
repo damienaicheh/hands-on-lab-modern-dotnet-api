@@ -6,6 +6,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using DocumentAPI.DTOs;
+using DocumentAPI.Models;
 
 /// <summary>
 /// Covers end-to-end HTTP behavior for the Document API endpoints.
@@ -25,30 +26,29 @@ public sealed class DocumentApiEndpointsTests
     }
 
     /// <summary>
-    /// Verifies that the health endpoint requires the api-version query parameter.
+    /// Verifies that the health endpoint is available without api-version.
     /// </summary>
     [Fact]
-    public async Task Health_requires_api_version()
+    public async Task HealthIsAvailableWithoutApiVersion()
     {
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/health");
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        var payload = await response.Content.ReadFromJsonAsync<HealthyOrDegradedStatus>();
 
-        Assert.NotNull(error);
-        Assert.Equal(400, error!.Code);
-        Assert.Equal("The api-version query parameter is required.", error.Message);
+        Assert.NotNull(payload);
+        Assert.False(string.IsNullOrWhiteSpace(payload!.Status));
     }
 
     /// <summary>
     /// Verifies that document search requires bearer authentication.
     /// </summary>
     [Fact]
-    public async Task Search_requires_authentication()
+    public async Task SearchRequiresAuthentication()
     {
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
@@ -65,10 +65,31 @@ public sealed class DocumentApiEndpointsTests
     }
 
     /// <summary>
+    /// Verifies that document search still validates api-version when the caller is authenticated.
+    /// </summary>
+    [Fact]
+    public async Task SearchRequiresApiVersionWhenAuthenticated()
+    {
+        using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
+
+        var response = await client.GetAsync("/documents/search?query=workshop");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+
+        Assert.NotNull(error);
+        Assert.Equal(400, error!.Code);
+        Assert.Equal("The api-version query parameter is required.", error.Message);
+    }
+
+    /// <summary>
     /// Verifies that the health endpoint echoes the correlation identifier header.
     /// </summary>
     [Fact]
-    public async Task Health_echoes_the_correlation_id_header()
+    public async Task HealthEchoesCorrelationIdHeader()
     {
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
@@ -86,7 +107,7 @@ public sealed class DocumentApiEndpointsTests
     /// Verifies the upload, search, and download flow for a document.
     /// </summary>
     [Fact]
-    public async Task Upload_search_and_download_round_trip_document()
+    public async Task UploadSearchAndDownloadRoundTripDocument()
     {
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
@@ -134,10 +155,36 @@ public sealed class DocumentApiEndpointsTests
     }
 
     /// <summary>
+    /// Verifies that upload requests without metadata are rejected.
+    /// </summary>
+    [Fact]
+    public async Task UploadRequiresMetadataPart()
+    {
+        using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
+
+        using var form = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("hello world"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        form.Add(fileContent, "file", "notes.txt");
+
+        var response = await client.PostAsync("/documents?api-version=v1", form);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+
+        Assert.NotNull(error);
+        Assert.Equal(400, error!.Code);
+        Assert.Equal("The metadata part is required.", error.Message);
+    }
+
+    /// <summary>
     /// Verifies that uploading identical document content twice returns a conflict response.
     /// </summary>
     [Fact]
-    public async Task Uploading_the_same_content_twice_returns_conflict()
+    public async Task UploadingSameContentTwiceReturnsConflict()
     {
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
@@ -165,6 +212,27 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.NotNull(error);
         Assert.Equal(409, error!.Code);
+    }
+
+    /// <summary>
+    /// Verifies that downloading an unknown document identifier returns not found.
+    /// </summary>
+    [Fact]
+    public async Task DownloadReturnsNotFoundForUnknownDocumentId()
+    {
+        using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
+
+        var response = await client.GetAsync("/documents/unknown-document/content?api-version=v1");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+
+        Assert.NotNull(error);
+        Assert.Equal(404, error!.Code);
+        Assert.Equal("The requested document was not found.", error.Message);
     }
 
     /// <summary>

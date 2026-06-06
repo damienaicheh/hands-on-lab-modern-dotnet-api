@@ -18,7 +18,7 @@ public sealed class ApplicationInsightsDocumentActivityMonitorTests
     /// Verifies that document business events and metrics are emitted to Application Insights.
     /// </summary>
     [Fact]
-    public void Tracks_business_events_and_metrics()
+    public void TracksBusinessEventsAndMetrics()
     {
         var channel = new RecordingTelemetryChannel();
 
@@ -46,8 +46,7 @@ public sealed class ApplicationInsightsDocumentActivityMonitorTests
         activityMonitor.TrackSearch(
             new DocumentSearchCriteria("workshop", null, null, "text/plain"),
             resultCount: 1,
-            cacheHit: false,
-            durationMs: 8);
+            cacheHit: false);
 
         activityMonitor.TrackDownloadSucceeded(
             documentId: "doc-123",
@@ -58,11 +57,13 @@ public sealed class ApplicationInsightsDocumentActivityMonitorTests
         Assert.Contains(channel.TelemetryItems.OfType<EventTelemetry>(), item =>
             item.Name == "Documents.Upload.Completed" && item.Properties["DocumentId"] == "doc-123");
         Assert.Contains(channel.TelemetryItems.OfType<EventTelemetry>(), item =>
-            item.Name == "Documents.Search.Completed" && item.Properties["CacheHit"] == "False");
+            item.Name == "Documents.Search.Completed"
+            && item.Properties["CacheHit"] == "False"
+            && item.Metrics.TryGetValue("ResultCount", out var resultCount)
+            && resultCount == 1);
         Assert.Contains(channel.TelemetryItems.OfType<EventTelemetry>(), item =>
             item.Name == "Documents.Download.Completed" && item.Properties["DocumentId"] == "doc-123");
         Assert.Contains(channel.TelemetryItems.OfType<MetricTelemetry>(), item => item.Name == "Documents.Upload.SizeBytes");
-        Assert.Contains(channel.TelemetryItems.OfType<MetricTelemetry>(), item => item.Name == "Documents.Search.ResultCount");
         Assert.Contains(channel.TelemetryItems.OfType<MetricTelemetry>(), item => item.Name == "Documents.Download.DurationMs");
     }
 

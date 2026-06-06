@@ -23,7 +23,7 @@ public sealed class ApplicationInsightsRegistrationTests
     /// Verifies that the host starts successfully when Application Insights is enabled.
     /// </summary>
     [Fact]
-    public async Task ApplicationInsights_can_be_enabled_without_breaking_startup()
+    public async Task ApplicationInsightsCanBeEnabledWithoutBreakingStartup()
     {
         var configuration = new Dictionary<string, string?>
         {
