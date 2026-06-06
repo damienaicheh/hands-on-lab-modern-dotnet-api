@@ -88,11 +88,12 @@ internal sealed class DocumentService(
         }
 
         var documentId = Guid.NewGuid().ToString("N");
-        string? storageKey = null;
+        var blobUploaded = false;
 
         try
         {
-            storageKey = await _storage.SaveAsync(documentId, command.FileName, command.Content, cancellationToken);
+            await _storage.SaveAsync(hash, command.Content, cancellationToken);
+            blobUploaded = true;
 
             var (title, description, source, tags) = NormalizeMetadata(command.Metadata);
             var document = new Document
@@ -106,7 +107,6 @@ internal sealed class DocumentService(
                 Source = source,
                 Tags = tags,
                 ContentHash = hash,
-                StorageKey = storageKey,
                 CreatedUtc = DateTimeOffset.UtcNow,
             };
 
@@ -123,25 +123,29 @@ internal sealed class DocumentService(
         }
         catch (DbUpdateException)
         {
-            if (!string.IsNullOrWhiteSpace(storageKey))
-            {
-                await _storage.DeleteAsync(storageKey, cancellationToken);
-            }
-
             var conflictingDocument = await _resiliencePipeline.ExecuteAsync(
                 async token => await _dbContext.Documents
                     .AsNoTracking()
                     .FirstOrDefaultAsync(document => document.ContentHash == hash, token),
                 cancellationToken);
-            var conflictingDocumentId = conflictingDocument?.Id ?? documentId;
+
+            if (conflictingDocument is null)
+            {
+                if (blobUploaded)
+                {
+                    await _storage.DeleteAsync(hash, cancellationToken);
+                }
+
+                throw;
+            }
 
             stopwatch.Stop();
             _activityMonitor.TrackUploadDuplicate(
-                conflictingDocumentId,
+                conflictingDocument.Id,
                 command.ContentType,
                 command.Content.LongLength,
                 stopwatch.Elapsed.TotalMilliseconds);
-            throw new DuplicateDocumentException(conflictingDocumentId);
+            throw new DuplicateDocumentException(conflictingDocument.Id);
         }
     }
 
@@ -162,7 +166,7 @@ internal sealed class DocumentService(
             return null;
         }
 
-        var stream = await _storage.OpenReadAsync(document.StorageKey, cancellationToken);
+        var stream = await _storage.OpenReadAsync(document.ContentHash, cancellationToken);
 
         if (stream is null)
         {

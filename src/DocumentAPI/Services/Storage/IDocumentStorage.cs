@@ -6,19 +6,19 @@ namespace DocumentAPI.Services.Storage;
 public interface IDocumentStorage
 {
     /// <summary>
-    /// Persists document binary content and returns the storage key used to retrieve it later.
+    /// Persists document binary content using its deterministic content hash as the blob identifier.
     /// </summary>
-    Task<string> SaveAsync(string documentId, string fileName, byte[] content, CancellationToken cancellationToken);
+    Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken);
 
     /// <summary>
     /// Deletes document binary content from the underlying store.
     /// </summary>
-    Task DeleteAsync(string storageKey, CancellationToken cancellationToken);
+    Task DeleteAsync(string contentHash, CancellationToken cancellationToken);
 
     /// <summary>
     /// Opens a read stream for previously stored binary content.
     /// </summary>
-    Task<Stream?> OpenReadAsync(string storageKey, CancellationToken cancellationToken);
+    Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken);
 
     /// <summary>
     /// Checks whether the underlying content store can be reached.

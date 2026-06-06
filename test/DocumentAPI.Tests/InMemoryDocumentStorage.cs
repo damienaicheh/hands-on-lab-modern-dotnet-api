@@ -11,28 +11,23 @@ internal sealed class InMemoryDocumentStorage : IDocumentStorage
     private readonly ConcurrentDictionary<string, byte[]> _documents = new(StringComparer.Ordinal);
 
     /// <inheritdoc />
-    public Task<string> SaveAsync(string documentId, string fileName, byte[] content, CancellationToken cancellationToken)
+    public Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken)
     {
-        var extension = Path.GetExtension(Path.GetFileName(fileName));
-        var storageKey = string.IsNullOrWhiteSpace(extension)
-            ? documentId
-            : $"{documentId}{extension.ToLowerInvariant()}";
-
-        _documents[storageKey] = [.. content];
-        return Task.FromResult(storageKey);
-    }
-
-    /// <inheritdoc />
-    public Task DeleteAsync(string storageKey, CancellationToken cancellationToken)
-    {
-        _documents.TryRemove(storageKey, out _);
+        _documents[contentHash] = [.. content];
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public Task<Stream?> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
+    public Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
     {
-        if (!_documents.TryGetValue(storageKey, out var content))
+        _documents.TryRemove(contentHash, out _);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)
+    {
+        if (!_documents.TryGetValue(contentHash, out var content))
         {
             return Task.FromResult<Stream?>(null);
         }

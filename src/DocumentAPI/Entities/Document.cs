@@ -44,9 +44,4 @@ public sealed class Document : EntityBase
     /// Gets or sets the deterministic content hash used to detect duplicates.
     /// </summary>
     public required string ContentHash { get; set; }
-
-    /// <summary>
-    /// Gets or sets the storage key used to retrieve the binary content.
-    /// </summary>
-    public required string StorageKey { get; set; }
 }

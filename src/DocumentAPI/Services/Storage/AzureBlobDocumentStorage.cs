@@ -42,12 +42,11 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
     }
 
     /// <inheritdoc />
-    public async Task<string> SaveAsync(string documentId, string fileName, byte[] content, CancellationToken cancellationToken)
+    public async Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken)
     {
         await EnsureInitializedAsync(cancellationToken);
 
-        var storageKey = CreateStorageKey(documentId, fileName);
-        var blobClient = _containerClient.GetBlobClient(storageKey);
+        var blobClient = _containerClient.GetBlobClient(contentHash);
 
         var expectedHash = ComputeMd5(content);
 
@@ -58,32 +57,29 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
             {
                 HttpHeaders = new BlobHttpHeaders
                 {
-                    ContentType = string.IsNullOrWhiteSpace(fileName) ? "application/octet-stream" : null,
                     ContentHash = expectedHash,
                 },
             },
             cancellationToken);
 
-        await VerifyContentIntegrityAsync(blobClient, storageKey, expectedHash, response.Value.ContentHash, cancellationToken);
-
-        return storageKey;
+        await VerifyContentIntegrityAsync(blobClient, contentHash, expectedHash, response.Value.ContentHash, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task DeleteAsync(string storageKey, CancellationToken cancellationToken)
+    public async Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
     {
         await EnsureInitializedAsync(cancellationToken);
-        await _containerClient.DeleteBlobIfExistsAsync(storageKey, DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
+        await _containerClient.DeleteBlobIfExistsAsync(contentHash, DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<Stream?> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
+    public async Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)
     {
         await EnsureInitializedAsync(cancellationToken);
 
         try
         {
-            return await _containerClient.GetBlobClient(storageKey).OpenReadAsync(cancellationToken: cancellationToken);
+            return await _containerClient.GetBlobClient(contentHash).OpenReadAsync(cancellationToken: cancellationToken);
         }
         catch (RequestFailedException exception) when (exception.Status == StatusCodes.Status404NotFound)
         {
@@ -150,7 +146,7 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
     /// </summary>
     private static async Task VerifyContentIntegrityAsync(
         BlobClient blobClient,
-        string storageKey,
+        string contentHash,
         byte[] expectedHash,
         byte[]? storedHash,
         CancellationToken cancellationToken)
@@ -161,17 +157,6 @@ public sealed class AzureBlobDocumentStorage : IDocumentStorage
         }
 
         await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
-        throw new DocumentStorageIntegrityException(storageKey, expectedHash, storedHash);
-    }
-
-    /// <summary>
-    /// Creates the blob storage key from the document identifier and file extension.
-    /// </summary>
-    private static string CreateStorageKey(string documentId, string fileName)
-    {
-        var extension = Path.GetExtension(Path.GetFileName(fileName));
-        return string.IsNullOrWhiteSpace(extension)
-            ? documentId
-            : $"{documentId}{extension.ToLowerInvariant()}";
+        throw new DocumentStorageIntegrityException(contentHash, expectedHash, storedHash);
     }
 }

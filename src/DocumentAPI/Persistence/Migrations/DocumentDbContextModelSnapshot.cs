@@ -22,7 +22,7 @@ namespace DocumentAPI.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("DocumentAPI.Models.Document", b =>
+            modelBuilder.Entity("DocumentAPI.Entities.Document", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(64)
@@ -56,11 +56,6 @@ namespace DocumentAPI.Persistence.Migrations
                     b.Property<string>("Source")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("StorageKey")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
 
                     b.PrimitiveCollection<string>("Tags")
                         .IsRequired()

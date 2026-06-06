@@ -28,7 +28,6 @@ namespace DocumentAPI.Persistence.Migrations
                     Source = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     TagsJson = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ContentHash = table.Column<string>(type: "nchar(32)", fixedLength: true, maxLength: 32, nullable: false),
-                    StorageKey = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: false),
                     CreatedUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
                 },
                 constraints: table =>

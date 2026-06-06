@@ -7,6 +7,7 @@ using DocumentAPI.Entities;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Documents;
+using DocumentAPI.Services.Documents.Exceptions;
 using DocumentAPI.Services.Monitoring;
 using DocumentAPI.Services.Storage;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +39,6 @@ public sealed class DocumentServiceTests
                 Source = "unit-test",
                 Tags = ["lab", "notes"],
                 ContentHash = ComputeHash(Encoding.UTF8.GetBytes("hello world")),
-                StorageKey = "doc-1.txt",
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -113,7 +113,6 @@ public sealed class DocumentServiceTests
                 ContentType = "text/plain",
                 Size = duplicateBytes.Length,
                 ContentHash = ComputeHash(duplicateBytes),
-                StorageKey = "existing-doc.txt",
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -166,7 +165,8 @@ public sealed class DocumentServiceTests
         var service = CreateService(dbContext, storage, activityMonitor);
 
         var content = Encoding.UTF8.GetBytes("stored-content");
-        storage.Seed("doc-42.txt", content);
+        var contentHash = ComputeHash(content);
+        storage.Seed(contentHash, content);
 
         dbContext.Documents.Add(
             new Document
@@ -175,8 +175,7 @@ public sealed class DocumentServiceTests
                 FileName = "doc-42.txt",
                 ContentType = "text/plain",
                 Size = content.Length,
-                ContentHash = ComputeHash(content),
-                StorageKey = "doc-42.txt",
+                ContentHash = contentHash,
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -277,23 +276,22 @@ public sealed class DocumentServiceTests
 
         public int SaveCallCount { get; private set; }
 
-        public Task<string> SaveAsync(string documentId, string fileName, byte[] content, CancellationToken cancellationToken)
+        public Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken)
         {
             SaveCallCount++;
-            var storageKey = $"{documentId}{Path.GetExtension(fileName).ToLowerInvariant()}";
-            _contentByKey[storageKey] = [.. content];
-            return Task.FromResult(storageKey);
-        }
-
-        public Task DeleteAsync(string storageKey, CancellationToken cancellationToken)
-        {
-            _contentByKey.Remove(storageKey);
+            _contentByKey[contentHash] = [.. content];
             return Task.CompletedTask;
         }
 
-        public Task<Stream?> OpenReadAsync(string storageKey, CancellationToken cancellationToken)
+        public Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
         {
-            if (!_contentByKey.TryGetValue(storageKey, out var content))
+            _contentByKey.Remove(contentHash);
+            return Task.CompletedTask;
+        }
+
+        public Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)
+        {
+            if (!_contentByKey.TryGetValue(contentHash, out var content))
             {
                 return Task.FromResult<Stream?>(null);
             }
@@ -307,9 +305,9 @@ public sealed class DocumentServiceTests
             return Task.FromResult(true);
         }
 
-        public void Seed(string storageKey, byte[] content)
+        public void Seed(string contentHash, byte[] content)
         {
-            _contentByKey[storageKey] = [.. content];
+            _contentByKey[contentHash] = [.. content];
         }
     }
 }
