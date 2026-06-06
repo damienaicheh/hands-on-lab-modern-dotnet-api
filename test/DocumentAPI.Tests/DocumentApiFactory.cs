@@ -4,6 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using DocumentAPI.Persistence;
+using DocumentAPI.Services.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -25,7 +26,6 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
 
     private readonly IReadOnlyDictionary<string, string?> _configurationOverrides;
     private readonly string _databaseConnectionString;
-    private readonly string _storageRoot = Path.Combine(Path.GetTempPath(), "document-api-tests", Guid.NewGuid().ToString("N"));
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DocumentApiFactory" /> class.
@@ -74,8 +74,9 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
                 ["DocumentApi:Authentication:SigningKey"] = SigningKey,
                 ["DocumentApi:Monitoring:ApplicationInsights:Enabled"] = "false",
                 ["DocumentApi:Upload:MaxFileSizeBytes"] = "10485760",
-                ["DocumentApi:Storage:Provider"] = "LocalFile",
-                ["DocumentApi:Storage:LocalRootPath"] = _storageRoot,
+                ["DocumentApi:Storage:ServiceUri"] = "https://tests.blob.core.windows.net/",
+                ["DocumentApi:Storage:ContainerName"] = "documents",
+                ["DocumentApi:Storage:ManagedIdentityClientId"] = "",
                 ["DocumentApi:Search:CacheTtlSeconds"] = "60",
             };
 
@@ -94,6 +95,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
                     descriptor.ServiceType == typeof(DbContextOptions<DocumentDbContext>)
                     || descriptor.ServiceType == typeof(DbContextOptions)
                     || descriptor.ServiceType == typeof(DocumentDbContext)
+                    || descriptor.ServiceType == typeof(IDocumentStorage)
                     || (descriptor.ServiceType.IsGenericType
                         && descriptor.ServiceType.GetGenericTypeDefinition() == typeof(IDbContextOptionsConfiguration<>)))
                 .ToList();
@@ -104,20 +106,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
             }
 
             services.AddDbContext<DocumentDbContext>(options => options.UseSqlServer(_databaseConnectionString));
+            services.AddSingleton<IDocumentStorage, InMemoryDocumentStorage>();
         });
-    }
-
-
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-
-        if (!disposing || !Directory.Exists(_storageRoot))
-        {
-            return;
-        }
-
-        Directory.Delete(_storageRoot, recursive: true);
     }
 }

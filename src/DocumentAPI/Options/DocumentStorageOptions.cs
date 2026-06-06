@@ -6,16 +6,6 @@ namespace DocumentAPI.Options;
 public sealed class DocumentStorageOptions
 {
     /// <summary>
-    /// Gets or sets the storage provider used for document content.
-    /// </summary>
-    public DocumentStorageProvider Provider { get; set; } = DocumentStorageProvider.LocalFile;
-
-    /// <summary>
-    /// Gets or sets the local root path used when the local file provider is enabled.
-    /// </summary>
-    public string LocalRootPath { get; set; } = "App_Data/documents";
-
-    /// <summary>
     /// Gets or sets the Blob service URI used when Azure Blob Storage is enabled.
     /// </summary>
     public string ServiceUri { get; set; } = string.Empty;

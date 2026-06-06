@@ -8,8 +8,8 @@ resource "azurerm_storage_account" "this" {
   tags = local.tags
 }
 
-resource "azurerm_storage_container" "files" {
-  name                  = "files"
+resource "azurerm_storage_container" "documents" {
+  name                  = "documents"
   storage_account_id    = azurerm_storage_account.this.id
   container_access_type = "private"
 }

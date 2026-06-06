@@ -1,0 +1,6 @@
+# Default endpoint address for local testing
+@authority=http://localhost:7071
+
+### Get health status of the service
+POST {{authority}}/health
+Content-Type: text/plain

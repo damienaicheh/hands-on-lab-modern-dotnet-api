@@ -25,12 +25,7 @@ public static class DependencyInjection
     {
         services.AddDbContext<DocumentDbContext>(builder => ConfigureDatabase(builder, options.Database));
 
-        services.AddSingleton<IDocumentStorage>(serviceProvider => options.Storage.Provider switch
-        {
-            DocumentStorageProvider.LocalFile => ActivatorUtilities.CreateInstance<LocalFileDocumentStorage>(serviceProvider),
-            DocumentStorageProvider.AzureBlob => ActivatorUtilities.CreateInstance<AzureBlobDocumentStorage>(serviceProvider),
-            _ => throw new InvalidOperationException($"Unsupported storage provider '{options.Storage.Provider}'."),
-        });
+        services.AddSingleton<IDocumentStorage, AzureBlobDocumentStorage>();
 
         services.AddSingleton<IDocumentActivityMonitor, ApplicationInsightsDocumentActivityMonitor>();
 
