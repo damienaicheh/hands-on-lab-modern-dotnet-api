@@ -15,3 +15,17 @@ resource "azurerm_mssql_server" "this" {
 
   tags = local.tags
 }
+
+resource "azurerm_mssql_database" "document_api" {
+  name                                                       = "DocumentDb"
+  server_id                                                  = azurerm_mssql_server.this.id
+  collation                                                  = "SQL_Latin1_General_CP1_CI_AS"
+  license_type                                               = "LicenseIncluded"
+  maintenance_configuration_name                             = "SQL_Default"
+  max_size_gb                                                = 2
+  min_capacity                                               = 0
+  read_scale                                                 = false
+  sku_name                                                   = "GP_Gen5_2"
+  storage_account_type                                       = "Geo"
+  tags                                                       = local.tags
+}

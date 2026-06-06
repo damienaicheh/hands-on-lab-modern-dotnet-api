@@ -1,10 +1,6 @@
 # Default endpoint address for local testing
 @authority=http://localhost:5222
 
-### Get root endpoint to verify service is running
-GET {{authority}}/
-Content-Type: text/plain
-
 ### Get health status of the service
 GET {{authority}}/health
 Content-Type: text/plain

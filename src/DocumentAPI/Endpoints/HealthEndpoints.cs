@@ -31,17 +31,9 @@ public static class HealthEndpoints
     /// Returns the current health status of the service.
     /// </summary>
     private static async Task<IResult> GetHealthAsync(
-        [FromQuery(Name = ApiVersionValidation.ParameterName)] string? apiVersion,
         IHealthStatusService healthStatusService,
         CancellationToken cancellationToken)
     {
-        var versionError = ApiVersionValidation.Validate(apiVersion);
-
-        if (versionError is not null)
-        {
-            return Results.BadRequest(versionError);
-        }
-
         var status = await healthStatusService.GetStatusAsync(cancellationToken);
 
         return status.IsAvailable
