@@ -72,7 +72,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
                 ["DocumentApi:Authentication:Issuer"] = Issuer,
                 ["DocumentApi:Authentication:Audience"] = Audience,
                 ["DocumentApi:Authentication:SigningKey"] = SigningKey,
-                ["DocumentApi:Monitoring:ApplicationInsights:Enabled"] = "false",
+                ["DocumentApi:ApplicationInsights:Enabled"] = "false",
                 ["DocumentApi:Upload:MaxFileSizeBytes"] = "10485760",
                 ["DocumentApi:Storage:ServiceUri"] = "https://tests.blob.core.windows.net/",
                 ["DocumentApi:Storage:ContainerName"] = "documents",

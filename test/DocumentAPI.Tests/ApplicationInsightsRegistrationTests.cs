@@ -27,8 +27,8 @@ public sealed class ApplicationInsightsRegistrationTests
     {
         var configuration = new Dictionary<string, string?>
         {
-            ["DocumentApi:Monitoring:ApplicationInsights:Enabled"] = "true",
-            ["DocumentApi:Monitoring:ApplicationInsights:ConnectionString"] = "InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://westeurope-0.in.applicationinsights.azure.com/",
+            ["DocumentApi:ApplicationInsights:Enabled"] = "true",
+            ["DocumentApi:ApplicationInsights:ConnectionString"] = "InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://westeurope-0.in.applicationinsights.azure.com/",
         };
 
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString, configuration);

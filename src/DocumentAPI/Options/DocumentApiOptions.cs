@@ -16,9 +16,9 @@ public sealed class DocumentApiOptions
     public AuthenticationOptions Authentication { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the monitoring settings for the API.
+    /// Gets or sets the Application Insights monitoring settings for the API.
     /// </summary>
-    public MonitoringOptions Monitoring { get; set; } = new();
+    public ApplicationInsightsMonitoringOptions ApplicationInsights { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the upload validation settings.

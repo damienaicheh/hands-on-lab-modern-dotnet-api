@@ -15,7 +15,7 @@ public sealed class DocumentApiTelemetryInitializer(
     IOptions<DocumentApiOptions> options) : ITelemetryInitializer
 {
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-    private readonly string _cloudRoleName = options.Value.Monitoring.ApplicationInsights.CloudRoleName;
+    private readonly string _cloudRoleName = options.Value.ApplicationInsights.CloudRoleName;
 
     /// <summary>
     /// Initializes the specified telemetry item with API-specific context.

@@ -8,15 +8,15 @@ public sealed class AuthenticationOptions
     /// <summary>
     /// Gets or sets the expected token issuer.
     /// </summary>
-    public string Issuer { get; set; } = "DocumentAPI";
+    public string Issuer { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the expected token audience.
     /// </summary>
-    public string Audience { get; set; } = "DocumentAPIClient";
+    public string Audience { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the symmetric signing key used to validate bearer tokens.
     /// </summary>
-    public string SigningKey { get; set; } = "document-api-signing-key-to-randomly-generate";
+    public string SigningKey { get; set; } = string.Empty;
 }

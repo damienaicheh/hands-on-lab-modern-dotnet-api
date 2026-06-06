@@ -13,5 +13,5 @@ public sealed class DocumentStorageOptions
     /// <summary>
     /// Gets or sets the blob container name used for document content.
     /// </summary>
-    public string ContainerName { get; set; } = "documents";
+    public string ContainerName { get; set; } = string.Empty;
 }

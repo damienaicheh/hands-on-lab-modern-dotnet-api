@@ -59,7 +59,7 @@ builder.Services
 		};
 	});
 
-var applicationInsightsOptions = documentApiOptions.Monitoring.ApplicationInsights;
+var applicationInsightsOptions = documentApiOptions.ApplicationInsights;
 var applicationInsightsConnectionString = applicationInsightsOptions.Enabled
 	? ResolveApplicationInsightsConnectionString(builder.Configuration, applicationInsightsOptions)
 	: null;
