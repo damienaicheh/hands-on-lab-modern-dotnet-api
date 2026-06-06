@@ -6,7 +6,7 @@ using DocumentAPI.Services.Storage;
 /// <summary>
 /// In-memory document storage used by integration tests to avoid external blob dependencies.
 /// </summary>
-internal sealed class InMemoryDocumentStorage : IDocumentStorage
+internal sealed class InMemoryDocumentStorage : IDocumentStorageService
 {
     private readonly ConcurrentDictionary<string, byte[]> _documents = new(StringComparer.Ordinal);
 

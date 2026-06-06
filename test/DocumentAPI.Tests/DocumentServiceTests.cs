@@ -13,6 +13,7 @@ using DocumentAPI.Services.Monitoring;
 using DocumentAPI.Services.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Polly;
 
@@ -214,7 +215,8 @@ public sealed class DocumentServiceTests
             new MemoryCache(new MemoryCacheOptions()),
             new DocumentSearchCacheVersion(),
             new ResiliencePipelineBuilder().Build(),
-            options);
+            options,
+            NullLogger<DocumentService>.Instance);
     }
 
     private static DocumentDbContext CreateDbContext()
@@ -264,7 +266,7 @@ public sealed class DocumentServiceTests
         }
     }
 
-    private sealed class RecordingStorage : IDocumentStorage
+    private sealed class RecordingStorage : IDocumentStorageService
     {
         private readonly Dictionary<string, byte[]> _contentByKey = new(StringComparer.Ordinal);
 

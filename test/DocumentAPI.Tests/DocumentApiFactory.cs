@@ -96,7 +96,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
                     descriptor.ServiceType == typeof(DbContextOptions<DocumentDbContext>)
                     || descriptor.ServiceType == typeof(DbContextOptions)
                     || descriptor.ServiceType == typeof(DocumentDbContext)
-                    || descriptor.ServiceType == typeof(IDocumentStorage)
+                    || descriptor.ServiceType == typeof(IDocumentStorageService)
                     || (descriptor.ServiceType.IsGenericType
                         && descriptor.ServiceType.GetGenericTypeDefinition() == typeof(IDbContextOptionsConfiguration<>)))
                 .ToList();
@@ -107,7 +107,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
             }
 
             services.AddDbContext<DocumentDbContext>(options => options.UseSqlServer(_databaseConnectionString));
-            services.AddSingleton<IDocumentStorage, InMemoryDocumentStorage>();
+            services.AddSingleton<IDocumentStorageService, InMemoryDocumentStorage>();
         });
     }
 }
