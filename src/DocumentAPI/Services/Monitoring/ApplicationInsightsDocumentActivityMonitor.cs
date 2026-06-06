@@ -18,17 +18,16 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
     private readonly ILogger<ApplicationInsightsDocumentActivityMonitor> _logger = logger;
 
     /// <inheritdoc />
-    public void TrackSearch(DocumentSearchCriteria criteria, int resultCount, bool cacheHit, double durationMs)
+    public void TrackSearch(DocumentSearchCriteria criteria, int resultCount, bool cacheHit)
     {
         _logger.LogInformation(
-            "Document search completed. CacheHit={CacheHit} ResultCount={ResultCount} HasQuery={HasQuery} HasTitleFilter={HasTitleFilter} HasTagFilter={HasTagFilter} HasContentTypeFilter={HasContentTypeFilter} DurationMs={DurationMs}",
+            "Document search completed. CacheHit={CacheHit} ResultCount={ResultCount} HasQuery={HasQuery} HasTitleFilter={HasTitleFilter} HasTagFilter={HasTagFilter} HasContentTypeFilter={HasContentTypeFilter}",
             cacheHit,
             resultCount,
             !string.IsNullOrWhiteSpace(criteria.Query),
             !string.IsNullOrWhiteSpace(criteria.Title),
             !string.IsNullOrWhiteSpace(criteria.Tag),
-            !string.IsNullOrWhiteSpace(criteria.ContentType),
-            durationMs);
+            !string.IsNullOrWhiteSpace(criteria.ContentType));
 
         _telemetryClient.TrackEvent(
             "Documents.Search.Completed",
@@ -43,11 +42,7 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
             new Dictionary<string, double>
             {
                 ["ResultCount"] = resultCount,
-                ["DurationMs"] = durationMs,
             });
-
-        _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Search.ResultCount", resultCount));
-        _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Search.DurationMs", durationMs));
     }
 
     /// <inheritdoc />

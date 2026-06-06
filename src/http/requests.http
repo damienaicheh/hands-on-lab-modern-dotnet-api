@@ -17,7 +17,7 @@ Accept: application/json
 
 ### 3. Upload a PDF document
 # @name uploadDocument
-@fileName=sample-4.pdf
+@fileName=sample-5.pdf
 POST {{authority}}/documents/?api-version={{apiVersion}}
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=boundary

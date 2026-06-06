@@ -36,7 +36,6 @@ internal sealed class DocumentService(
     /// <inheritdoc />
     public async Task<IReadOnlyList<DocumentDto>> SearchAsync(DocumentSearchCriteria criteria, CancellationToken cancellationToken)
     {
-        var stopwatch = Stopwatch.StartNew();
         var cacheKey = CreateCacheKey(_cacheVersion.Current, criteria);
 
         var cacheHit = _cache.TryGetValue(cacheKey, out IReadOnlyList<DocumentDto>? cachedDocuments) && cachedDocuments is not null;
@@ -60,8 +59,7 @@ internal sealed class DocumentService(
                 });
         }
 
-        stopwatch.Stop();
-        _activityMonitor.TrackSearch(criteria, documents.Count, cacheHit, stopwatch.Elapsed.TotalMilliseconds);
+        _activityMonitor.TrackSearch(criteria, documents.Count, cacheHit);
 
         return documents;
     }

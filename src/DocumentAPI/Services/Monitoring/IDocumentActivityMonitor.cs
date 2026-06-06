@@ -14,8 +14,7 @@ public interface IDocumentActivityMonitor
     /// <param name="criteria">The search criteria used for the request.</param>
     /// <param name="resultCount">The number of matching documents returned.</param>
     /// <param name="cacheHit">A value indicating whether the result came from cache.</param>
-    /// <param name="durationMs">The elapsed duration in milliseconds.</param>
-    void TrackSearch(DocumentSearchCriteria criteria, int resultCount, bool cacheHit, double durationMs);
+    void TrackSearch(DocumentSearchCriteria criteria, int resultCount, bool cacheHit);
 
     /// <summary>
     /// Tracks the successful completion of a document upload.
