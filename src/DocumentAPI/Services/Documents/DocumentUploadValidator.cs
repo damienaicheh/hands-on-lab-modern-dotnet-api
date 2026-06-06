@@ -1,6 +1,7 @@
 namespace DocumentAPI.Services.Documents;
 
 using DocumentAPI.DTOs;
+using DocumentAPI.Models;
 using DocumentAPI.Options;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;

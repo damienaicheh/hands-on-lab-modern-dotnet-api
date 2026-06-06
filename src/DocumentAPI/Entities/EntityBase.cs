@@ -1,4 +1,4 @@
-namespace DocumentAPI.Models;
+namespace DocumentAPI.Entities;
 
 /// <summary>
 /// Provides the identity and audit fields shared by persisted entities.

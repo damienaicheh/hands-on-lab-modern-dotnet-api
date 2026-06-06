@@ -1,4 +1,4 @@
-namespace DocumentAPI.DTOs;
+namespace DocumentAPI.Models;
 
 /// <summary>
 /// Represents the error payload returned when access is unauthorized.

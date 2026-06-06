@@ -1,6 +1,6 @@
 namespace DocumentAPI.Services.Documents;
 
-using DocumentAPI.DTOs;
+using DocumentAPI.Models;
 
 /// <summary>
 /// Represents the result of request payload validation.

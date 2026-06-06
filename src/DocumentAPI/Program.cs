@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text;
-using DocumentAPI.DTOs;
 using DocumentAPI.Endpoints;
+using DocumentAPI.Models;
 using DocumentAPI.Observability;
 using DocumentAPI.Options;
 using DocumentAPI.Services;

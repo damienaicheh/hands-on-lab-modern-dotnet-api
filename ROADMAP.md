@@ -30,34 +30,11 @@
 - Infuse GitHub Copilot tips like documentation generation, code generation, and testing
 
 
-
-Roles / App Insights / Logs
-
-## Out of scope
-
-Need a presentation:
-
-Windows Service Migration Path
-Entity Framework Core presentation
-GitHub Copilot for Migration inside the IDE
-
-
-{
-  "alg": "HS256",
-  "typ": "JWT"
-}
-
-
-{
-  "iss": "DocumentAPI",
-  "aud": "DocumentAPIClient",
-  "sub": "demo-user",
-  "name": "Demo User",
-  "iat": 1780617600,
-  "exp": 1893456000
-}
-
-curl "http://localhost:5xxx/documents/search?api-version=1.0" \
-  -H "Authorization: Bearer <TOKEN_COLLÉ_DEPUIS_JWT.IO>"
-
 Diagram de sequence des appels d'API
+
+## TODO
+
+Vérifier retry pattern pour l'upload du document dans le Storage Account
+Vérifier les champs de la BDD s'il n'y a pas des données inutiles
+Vérifier si les commentaires sont tous bons
+Vérifier s'il n'y a pas de code mort

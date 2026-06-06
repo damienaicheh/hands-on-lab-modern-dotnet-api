@@ -1,6 +1,6 @@
 namespace DocumentAPI.Endpoints;
 
-using DocumentAPI.DTOs;
+using DocumentAPI.Models;
 
 /// <summary>
 /// Centralizes the API version query parameter contract used by the endpoints.

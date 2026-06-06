@@ -1,4 +1,4 @@
-namespace DocumentAPI.DTOs;
+namespace DocumentAPI.Models;
 
 /// <summary>
 /// Represents a generic API error response.

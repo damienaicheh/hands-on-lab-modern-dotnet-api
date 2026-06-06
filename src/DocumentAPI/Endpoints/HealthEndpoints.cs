@@ -1,8 +1,7 @@
 namespace DocumentAPI.Endpoints;
 
-using DocumentAPI.DTOs;
+using DocumentAPI.Models;
 using DocumentAPI.Services.Health;
-using Microsoft.AspNetCore.Mvc;
 
 /// <summary>
 /// Registers the health-related Minimal API endpoints.

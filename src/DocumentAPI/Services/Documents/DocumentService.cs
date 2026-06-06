@@ -3,7 +3,7 @@ namespace DocumentAPI.Services.Documents;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using DocumentAPI.DTOs;
-using DocumentAPI.Models;
+using DocumentAPI.Entities;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Monitoring;

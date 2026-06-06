@@ -1,6 +1,6 @@
 namespace DocumentAPI.Persistence;
 
-using DocumentAPI.Models;
+using DocumentAPI.Entities;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>

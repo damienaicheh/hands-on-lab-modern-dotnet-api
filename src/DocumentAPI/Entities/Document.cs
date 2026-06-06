@@ -1,4 +1,4 @@
-namespace DocumentAPI.Models;
+namespace DocumentAPI.Entities;
 
 /// <summary>
 /// Represents a document and its metadata persisted in the database.

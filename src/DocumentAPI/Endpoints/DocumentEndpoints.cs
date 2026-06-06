@@ -2,6 +2,7 @@ namespace DocumentAPI.Endpoints;
 
 using System.Text.Json;
 using DocumentAPI.DTOs;
+using DocumentAPI.Models;
 using DocumentAPI.Services.Documents;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;

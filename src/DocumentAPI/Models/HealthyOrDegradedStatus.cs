@@ -1,9 +1,9 @@
-namespace DocumentAPI.DTOs;
+namespace DocumentAPI.Models;
 
 /// <summary>
-/// Represents a health response when the service is unavailable.
+/// Represents a health response when the service is available.
 /// </summary>
-public sealed record UnhealthyStatus
+public sealed record HealthyOrDegradedStatus
 {
     /// <summary>
     /// Gets the current health status value.
