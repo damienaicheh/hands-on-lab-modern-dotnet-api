@@ -17,15 +17,16 @@ Accept: application/json
 
 ### 3. Upload a PDF document
 # @name uploadDocument
+@fileName=sample-4.pdf
 POST {{authority}}/documents/?api-version={{apiVersion}}
 Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary
-Content-Disposition: form-data; name="file"; filename="sample-1.pdf"
+Content-Disposition: form-data; name="file"; filename="{{fileName}}"
 Content-Type: application/pdf
 
-< ./files/sample-1.pdf
+< ./files/{{fileName}}
 --boundary
 Content-Disposition: form-data; name="metadata"
 
