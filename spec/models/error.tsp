@@ -40,3 +40,18 @@ model UnauthorizedErrorResponse {
   ...UnauthorizedResponse;
   ...Body<UnauthorizedError>;
 }
+
+model InternalServerErrorApiResponse {
+  @statusCode statusCode: 500;
+  @body body: Error;
+}
+
+model BadGatewayApiErrorResponse {
+  @statusCode statusCode: 502;
+  @body body: Error;
+}
+
+model ServiceUnavailableApiErrorResponse {
+  @statusCode statusCode: 503;
+  @body body: Error;
+}
