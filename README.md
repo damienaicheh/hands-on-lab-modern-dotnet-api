@@ -1,8 +1,8 @@
 # DocumentAPI - .NET 10 best-practices review
 
 ## Scope reviewed
-- `/tmp/workspace/damienaicheh/hands-on-lab-modern-dotnet-api/src/DocumentAPI`
-- `/tmp/workspace/damienaicheh/hands-on-lab-modern-dotnet-api/test/DocumentAPI.Tests`
+- `src/DocumentAPI`
+- `test/DocumentAPI.Tests`
 
 ## Missing / bad practices (based on Microsoft guidance)
 
