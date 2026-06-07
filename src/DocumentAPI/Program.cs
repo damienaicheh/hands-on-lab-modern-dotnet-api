@@ -18,7 +18,7 @@ const string ProblemJsonContentType = "application/problem+json";
 
 var documentApiOptions = builder.Configuration.GetSection(DocumentApiOptions.SectionName).Get<DocumentApiOptions>() ?? new DocumentApiOptions();
 
-builder.Services.Configure<DocumentApiOptions>(builder.Configuration.GetSection(DocumentApiOptions.SectionName));
+builder.Services.AddDocumentApiOptions(builder.Configuration);
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpLogging(options =>
 {
