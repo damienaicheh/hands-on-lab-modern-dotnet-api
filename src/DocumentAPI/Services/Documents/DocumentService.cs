@@ -90,6 +90,11 @@ internal sealed class DocumentService(
     /// <inheritdoc />
     public async Task<DocumentDto> UploadAsync(DocumentUploadCommand command, CancellationToken cancellationToken)
     {
+        if (!command.Content.CanSeek)
+        {
+            throw new ArgumentException("The upload content stream must support seeking.", nameof(command));
+        }
+
         var stopwatch = Stopwatch.StartNew();
         var md5 = FileHelper.ComputeMd5(command.Content);
         var hash = Convert.ToHexString(md5);
