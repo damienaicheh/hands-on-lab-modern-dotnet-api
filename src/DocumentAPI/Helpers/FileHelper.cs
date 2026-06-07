@@ -15,6 +15,17 @@ internal static class FileHelper
 #pragma warning restore CA5351
     }
 
+    /// <summary>
+    /// Computes the MD5 content hash used to detect duplicate documents from a stream.
+    /// The stream position is not reset after hashing.
+    /// </summary>
+    internal static string ComputeContentHash(Stream stream)
+    {
+        // MD5 is used to align the duplicate-detection hash with the Content-MD5 integrity contract, not for security.
+#pragma warning disable CA5351
+        return Convert.ToHexString(ComputeMd5(stream));
+#pragma warning restore CA5351
+    }
 
     /// <summary>
     /// Computes the MD5 hash of the document content used to verify storage integrity.
@@ -24,6 +35,18 @@ internal static class FileHelper
         // MD5 is used solely to satisfy the Content-MD5 integrity contract of Azure Blob Storage, not for security.
 #pragma warning disable CA5351
         return MD5.HashData(content);
+#pragma warning restore CA5351
+    }
+
+    /// <summary>
+    /// Computes the MD5 hash of the document content from a stream used to verify storage integrity.
+    /// The stream position is not reset after hashing.
+    /// </summary>
+    internal static byte[] ComputeMd5(Stream stream)
+    {
+        // MD5 is used solely to satisfy the Content-MD5 integrity contract of Azure Blob Storage, not for security.
+#pragma warning disable CA5351
+        return MD5.HashData(stream);
 #pragma warning restore CA5351
     }
 }

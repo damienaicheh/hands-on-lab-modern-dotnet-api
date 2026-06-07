@@ -6,7 +6,6 @@ using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using DocumentAPI.Helpers;
 using DocumentAPI.Options;
 using Microsoft.Extensions.Options;
 
@@ -43,27 +42,24 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
     }
 
     /// <inheritdoc />
-    public async Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken)
+    public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
     {
         await EnsureInitializedAsync(cancellationToken);
 
         var blobClient = _containerClient.GetBlobClient(contentHash);
 
-        var expectedHash = FileHelper.ComputeMd5(content);
-
-        await using var stream = new MemoryStream(content, writable: false);
         var response = await blobClient.UploadAsync(
-            stream,
+            content,
             new BlobUploadOptions
             {
                 HttpHeaders = new BlobHttpHeaders
                 {
-                    ContentHash = expectedHash,
+                    ContentHash = md5Hash,
                 },
             },
             cancellationToken);
 
-        await VerifyContentIntegrityAsync(blobClient, contentHash, expectedHash, response.Value.ContentHash, cancellationToken);
+        await VerifyContentIntegrityAsync(blobClient, contentHash, md5Hash, response.Value.ContentHash, cancellationToken);
     }
 
     /// <inheritdoc />
