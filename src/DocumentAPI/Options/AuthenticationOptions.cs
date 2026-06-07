@@ -19,4 +19,10 @@ public sealed class AuthenticationOptions
     /// Gets or sets the symmetric signing key used to validate bearer tokens.
     /// </summary>
     public string SigningKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether HTTPS is required for the metadata address or authority.
+    /// Defaults to <see langword="true"/>. Set to <see langword="false"/> only in local development scenarios.
+    /// </summary>
+    public bool RequireHttpsMetadata { get; set; } = true;
 }

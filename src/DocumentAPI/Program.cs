@@ -35,7 +35,7 @@ builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
 	{
-		options.RequireHttpsMetadata = false;
+		options.RequireHttpsMetadata = documentApiOptions.Authentication.RequireHttpsMetadata;
 		options.TokenValidationParameters = new TokenValidationParameters
 		{
 			ValidateIssuer = true,
