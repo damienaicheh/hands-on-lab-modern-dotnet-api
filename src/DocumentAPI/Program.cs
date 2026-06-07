@@ -1,17 +1,19 @@
 using System.Reflection;
 using System.Text;
 using DocumentAPI.Endpoints;
-using DocumentAPI.Models;
 using DocumentAPI.Observability;
 using DocumentAPI.Options;
 using DocumentAPI.Services;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
+
+const string ProblemJsonContentType = "application/problem+json";
 
 var documentApiOptions = builder.Configuration.GetSection(DocumentApiOptions.SectionName).Get<DocumentApiOptions>() ?? new DocumentApiOptions();
 
@@ -27,6 +29,7 @@ builder.Services.AddHttpLogging(options =>
 	options.ResponseHeaders.Add(CorrelationIdMiddleware.HeaderName);
 });
 builder.Services.AddAuthorization();
+builder.Services.AddProblemDetails();
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
@@ -49,11 +52,12 @@ builder.Services
 			{
 				context.HandleResponse();
 				context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-				context.Response.ContentType = "application/json";
-				await context.Response.WriteAsJsonAsync(new UnauthorizedError
+				context.Response.ContentType = ProblemJsonContentType;
+				await context.Response.WriteAsJsonAsync(new ProblemDetails
 				{
-					Code = "UNAUTHORIZED",
-					Message = "Access is unauthorized.",
+					Status = StatusCodes.Status401Unauthorized,
+					Title = "Unauthorized",
+					Detail = "Access is unauthorized.",
 				});
 			},
 		};

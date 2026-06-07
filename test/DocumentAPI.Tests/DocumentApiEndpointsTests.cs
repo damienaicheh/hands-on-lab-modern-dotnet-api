@@ -7,6 +7,8 @@ using System.Text;
 using System.Text.Json;
 using DocumentAPI.DTOs;
 using DocumentAPI.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 /// <summary>
 /// Covers end-to-end HTTP behavior for the Document API endpoints.
@@ -57,11 +59,11 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
 
-        var error = await response.Content.ReadFromJsonAsync<UnauthorizedError>();
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
 
         Assert.NotNull(error);
-        Assert.Equal("UNAUTHORIZED", error!.Code);
-        Assert.Equal("Access is unauthorized.", error.Message);
+        Assert.Equal(StatusCodes.Status401Unauthorized, error!.Status);
+        Assert.Equal("Access is unauthorized.", error.Detail);
     }
 
     /// <summary>
@@ -78,11 +80,11 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
-        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
 
         Assert.NotNull(error);
-        Assert.Equal(400, error!.Code);
-        Assert.Equal("The api-version query parameter is required.", error.Message);
+        Assert.Equal(StatusCodes.Status400BadRequest, error!.Status);
+        Assert.Equal("The api-version query parameter is required.", error.Detail);
     }
 
     /// <summary>
@@ -173,11 +175,11 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
-        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
 
         Assert.NotNull(error);
-        Assert.Equal(400, error!.Code);
-        Assert.Equal("The metadata part is required.", error.Message);
+        Assert.Equal(StatusCodes.Status400BadRequest, error!.Status);
+        Assert.Equal("The metadata part is required.", error.Detail);
     }
 
     /// <summary>
@@ -208,10 +210,10 @@ public sealed class DocumentApiEndpointsTests
         Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, secondResponse.StatusCode);
 
-        var error = await secondResponse.Content.ReadFromJsonAsync<ApiError>();
+        var error = await secondResponse.Content.ReadFromJsonAsync<ProblemDetails>();
 
         Assert.NotNull(error);
-        Assert.Equal(409, error!.Code);
+        Assert.Equal(StatusCodes.Status409Conflict, error!.Status);
     }
 
     /// <summary>
@@ -228,11 +230,11 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
-        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
 
         Assert.NotNull(error);
-        Assert.Equal(404, error!.Code);
-        Assert.Equal("The requested document was not found.", error.Message);
+        Assert.Equal(StatusCodes.Status404NotFound, error!.Status);
+        Assert.Equal("The requested document was not found.", error.Detail);
     }
 
     /// <summary>

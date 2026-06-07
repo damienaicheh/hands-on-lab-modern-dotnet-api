@@ -3,13 +3,12 @@ namespace DocumentAPI.Endpoints;
 using Azure;
 using System.Text.Json;
 using DocumentAPI.DTOs;
-using DocumentAPI.Models;
 using DocumentAPI.Services.Documents;
 using DocumentAPI.Services.Documents.Exceptions;
 using DocumentAPI.Services.Storage;
 using DocumentAPI.Services.Validators.Documents;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Primitives;
 
 /// <summary>
@@ -33,31 +32,31 @@ public static class DocumentEndpoints
         group.MapGet("/search", SearchAsync)
             .WithName("Documents_search")
             .Produces<IReadOnlyList<DocumentDto>>(StatusCodes.Status200OK)
-            .Produces<ApiError>(StatusCodes.Status400BadRequest)
-            .Produces<ApiError>(StatusCodes.Status500InternalServerError)
-            .Produces<ApiError>(StatusCodes.Status503ServiceUnavailable)
-            .Produces<UnauthorizedError>(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapPost("/", UploadAsync)
             .WithName("Documents_upload")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<DocumentDto>(StatusCodes.Status201Created)
-            .Produces<ApiError>(StatusCodes.Status400BadRequest)
-            .Produces<ApiError>(StatusCodes.Status409Conflict)
-            .Produces<ApiError>(StatusCodes.Status500InternalServerError)
-            .Produces<ApiError>(StatusCodes.Status502BadGateway)
-            .Produces<ApiError>(StatusCodes.Status503ServiceUnavailable)
-            .Produces<ApiError>(StatusCodes.Status413PayloadTooLarge)
-            .Produces<UnauthorizedError>(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         group.MapGet("/{id}/content", DownloadAsync)
             .WithName("Documents_download")
             .Produces(StatusCodes.Status200OK)
-            .Produces<ApiError>(StatusCodes.Status400BadRequest)
-            .Produces<ApiError>(StatusCodes.Status404NotFound)
-            .Produces<ApiError>(StatusCodes.Status500InternalServerError)
-            .Produces<ApiError>(StatusCodes.Status503ServiceUnavailable)
-            .Produces<UnauthorizedError>(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         return endpoints;
     }
@@ -80,7 +79,7 @@ public static class DocumentEndpoints
 
         if (versionError is not null)
         {
-            return Results.BadRequest(versionError);
+            return Results.Problem(versionError);
         }
 
         try
@@ -94,34 +93,22 @@ public static class DocumentEndpoints
         catch (DbUpdateException exception)
         {
             logger.LogError(exception, "Document search failed because the database dependency is unavailable.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "The document database is temporarily unavailable.",
-                },
+            return Results.Problem(
+                detail: "The document database is temporarily unavailable.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (TimeoutException exception)
         {
             logger.LogError(exception, "Document search failed due to a dependency timeout.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "A downstream dependency timed out while processing the request.",
-                },
+            return Results.Problem(
+                detail: "A downstream dependency timed out while processing the request.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Document search failed due to an unexpected error.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status500InternalServerError,
-                    Message = "An unexpected error occurred while processing the document request.",
-                },
+            return Results.Problem(
+                detail: "An unexpected error occurred while processing the document request.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }
@@ -142,12 +129,14 @@ public static class DocumentEndpoints
 
         if (versionError is not null)
         {
-            return Results.BadRequest(versionError);
+            return Results.Problem(versionError);
         }
 
         if (!request.HasFormContentType)
         {
-            return Results.BadRequest(new ApiError { Code = 400, Message = "The request must use multipart/form-data." });
+            return Results.Problem(
+                detail: "The request must use multipart/form-data.",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         var form = await request.ReadFormAsync(cancellationToken);
@@ -156,14 +145,14 @@ public static class DocumentEndpoints
 
         if (metadataResult.Error is not null)
         {
-            return Results.BadRequest(metadataResult.Error);
+            return Results.Problem(metadataResult.Error);
         }
 
         var validationFailure = validator.Validate(file, metadataResult.Metadata);
 
         if (validationFailure is not null)
         {
-            return Results.Json(validationFailure.Error, statusCode: validationFailure.StatusCode);
+            return Results.Problem(validationFailure.Problem);
         }
 
         await using var fileStream = file!.OpenReadStream();
@@ -181,23 +170,15 @@ public static class DocumentEndpoints
         catch (DuplicateDocumentException exception)
         {
             logger.LogWarning(exception, "Duplicate document upload rejected.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status409Conflict,
-                    Message = "A document with the same content already exists.",
-                },
+            return Results.Problem(
+                detail: "A document with the same content already exists.",
                 statusCode: StatusCodes.Status409Conflict);
         }
         catch (DocumentStorageIntegrityException exception)
         {
             logger.LogError(exception, "Document upload failed because storage integrity verification failed.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status502BadGateway,
-                    Message = "The document storage service reported a content integrity failure.",
-                },
+            return Results.Problem(
+                detail: "The document storage service reported a content integrity failure.",
                 statusCode: StatusCodes.Status502BadGateway);
         }
         catch (RequestFailedException exception)
@@ -207,45 +188,29 @@ public static class DocumentEndpoints
                 "Document upload failed because the storage dependency is unavailable. StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode}",
                 exception.Status,
                 exception.ErrorCode);
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "The document storage service is temporarily unavailable.",
-                },
+            return Results.Problem(
+                detail: "The document storage service is temporarily unavailable.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (DbUpdateException exception)
         {
             logger.LogError(exception, "Document upload failed because the database dependency is unavailable.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "The document database is temporarily unavailable.",
-                },
+            return Results.Problem(
+                detail: "The document database is temporarily unavailable.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (TimeoutException exception)
         {
             logger.LogError(exception, "Document upload failed due to a dependency timeout.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "A downstream dependency timed out while processing the request.",
-                },
+            return Results.Problem(
+                detail: "A downstream dependency timed out while processing the request.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Document upload failed due to an unexpected error.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status500InternalServerError,
-                    Message = "An unexpected error occurred while processing the document request.",
-                },
+            return Results.Problem(
+                detail: "An unexpected error occurred while processing the document request.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }
@@ -265,7 +230,7 @@ public static class DocumentEndpoints
 
         if (versionError is not null)
         {
-            return Results.BadRequest(versionError);
+            return Results.Problem(versionError);
         }
 
         try
@@ -274,7 +239,9 @@ public static class DocumentEndpoints
 
             if (document is null)
             {
-                return Results.NotFound(new ApiError { Code = 404, Message = "The requested document was not found." });
+                return Results.Problem(
+                    detail: "The requested document was not found.",
+                    statusCode: StatusCodes.Status404NotFound);
             }
 
             return Results.File(document.Content, document.ContentType, document.FileName, enableRangeProcessing: true);
@@ -286,45 +253,29 @@ public static class DocumentEndpoints
                 "Document download failed because the storage dependency is unavailable. StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode}",
                 exception.Status,
                 exception.ErrorCode);
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "The document storage service is temporarily unavailable.",
-                },
+            return Results.Problem(
+                detail: "The document storage service is temporarily unavailable.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (DbUpdateException exception)
         {
             logger.LogError(exception, "Document download failed because the database dependency is unavailable.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "The document database is temporarily unavailable.",
-                },
+            return Results.Problem(
+                detail: "The document database is temporarily unavailable.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (TimeoutException exception)
         {
             logger.LogError(exception, "Document download failed due to a dependency timeout.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status503ServiceUnavailable,
-                    Message = "A downstream dependency timed out while processing the request.",
-                },
+            return Results.Problem(
+                detail: "A downstream dependency timed out while processing the request.",
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Document download failed due to an unexpected error.");
-            return Results.Json(
-                new ApiError
-                {
-                    Code = StatusCodes.Status500InternalServerError,
-                    Message = "An unexpected error occurred while processing the document request.",
-                },
+            return Results.Problem(
+                detail: "An unexpected error occurred while processing the document request.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
     }
@@ -332,11 +283,16 @@ public static class DocumentEndpoints
     /// <summary>
     /// Parses the JSON metadata part from a multipart form request.
     /// </summary>
-    private static (DocumentMetadataDto? Metadata, ApiError? Error) TryReadMetadata(StringValues rawMetadata)
+    private static (DocumentMetadataDto? Metadata, ProblemDetails? Error) TryReadMetadata(StringValues rawMetadata)
     {
         if (StringValues.IsNullOrEmpty(rawMetadata))
         {
-            return (null, new ApiError { Code = 400, Message = "The metadata part is required." });
+            return (null, new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = "The metadata part is required.",
+            });
         }
 
         try
@@ -345,14 +301,24 @@ public static class DocumentEndpoints
 
             if (metadata is null)
             {
-                return (null, new ApiError { Code = 400, Message = "The metadata part is required." });
+                return (null, new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Bad Request",
+                    Detail = "The metadata part is required.",
+                });
             }
 
             return (metadata, null);
         }
         catch (JsonException)
         {
-            return (null, new ApiError { Code = 400, Message = "The metadata part must contain valid JSON." });
+            return (null, new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = "The metadata part must contain valid JSON.",
+            });
         }
     }
 }

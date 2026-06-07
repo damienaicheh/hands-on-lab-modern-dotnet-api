@@ -1,6 +1,6 @@
 namespace DocumentAPI.Endpoints;
 
-using DocumentAPI.Models;
+using Microsoft.AspNetCore.Mvc;
 
 /// <summary>
 /// Centralizes the API version query parameter contract used by the endpoints.
@@ -18,11 +18,16 @@ internal static class ApiVersionValidation
     /// Validates that the required API version query parameter is present.
     /// </summary>
     /// <param name="apiVersion">The requested API version.</param>
-    /// <returns>A validation error when the parameter is missing; otherwise <see langword="null" />.</returns>
-    public static ApiError? Validate(string? apiVersion)
+    /// <returns>A <see cref="ProblemDetails" /> validation error when the parameter is missing; otherwise <see langword="null" />.</returns>
+    public static ProblemDetails? Validate(string? apiVersion)
     {
         return string.IsNullOrWhiteSpace(apiVersion)
-            ? new ApiError { Code = 400, Message = MissingParameterMessage }
+            ? new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = MissingParameterMessage,
+            }
             : null;
     }
 }
