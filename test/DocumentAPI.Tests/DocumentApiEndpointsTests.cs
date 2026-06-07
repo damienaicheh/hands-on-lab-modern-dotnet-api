@@ -78,11 +78,11 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
-        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        var error = await response.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
 
         Assert.NotNull(error);
-        Assert.Equal(400, error!.Code);
-        Assert.Equal("The api-version query parameter is required.", error.Message);
+        Assert.Equal(400, error!.Status);
+        Assert.False(string.IsNullOrWhiteSpace(error.Detail));
     }
 
     /// <summary>

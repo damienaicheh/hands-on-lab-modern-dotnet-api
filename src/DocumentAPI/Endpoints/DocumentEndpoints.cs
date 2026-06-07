@@ -1,5 +1,6 @@
 namespace DocumentAPI.Endpoints;
 
+using Asp.Versioning;
 using Azure;
 using System.Text.Json;
 using DocumentAPI.DTOs;
@@ -28,7 +29,8 @@ public static class DocumentEndpoints
     {
         var group = endpoints.MapGroup("/documents")
             .WithTags("Documents")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .HasApiVersion(new ApiVersion(1));
 
         group.MapGet("/search", SearchAsync)
             .WithName("Documents_search")
@@ -66,7 +68,6 @@ public static class DocumentEndpoints
     /// Searches documents using free-text and metadata filters.
     /// </summary>
     private static async Task<IResult> SearchAsync(
-        [FromQuery(Name = ApiVersionValidation.ParameterName)] string? apiVersion,
         [FromQuery] string? query,
         [FromQuery] string? title,
         [FromQuery] string? tag,
@@ -76,12 +77,6 @@ public static class DocumentEndpoints
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
-        var versionError = ApiVersionValidation.Validate(apiVersion);
-
-        if (versionError is not null)
-        {
-            return Results.BadRequest(versionError);
-        }
 
         try
         {
@@ -131,19 +126,12 @@ public static class DocumentEndpoints
     /// </summary>
     private static async Task<IResult> UploadAsync(
         HttpRequest request,
-        [FromQuery(Name = ApiVersionValidation.ParameterName)] string? apiVersion,
         IDocumentUploadValidator validator,
         IDocumentService documentService,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
-        var versionError = ApiVersionValidation.Validate(apiVersion);
-
-        if (versionError is not null)
-        {
-            return Results.BadRequest(versionError);
-        }
 
         if (!request.HasFormContentType)
         {
@@ -254,19 +242,12 @@ public static class DocumentEndpoints
     /// Downloads the binary content of a document by identifier.
     /// </summary>
     private static async Task<IResult> DownloadAsync(
-        [FromQuery(Name = ApiVersionValidation.ParameterName)] string? apiVersion,
         string id,
         IDocumentService documentService,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
-        var versionError = ApiVersionValidation.Validate(apiVersion);
-
-        if (versionError is not null)
-        {
-            return Results.BadRequest(versionError);
-        }
 
         try
         {
