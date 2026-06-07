@@ -18,9 +18,7 @@ public static class DocumentApiOptionsServiceCollectionExtensions
             .AddOptions<AuthenticationOptions>()
             .Bind(section.GetSection(nameof(DocumentApiOptions.Authentication)))
             .ValidateDataAnnotations()
-            .Validate(options => !string.IsNullOrWhiteSpace(options.Issuer), "DocumentApi:Authentication:Issuer must be configured.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.Audience), "DocumentApi:Authentication:Audience must be configured.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.SigningKey), "DocumentApi:Authentication:SigningKey must be configured.")
+            .Validate(options => options.SigningKey.Length >= 32, "DocumentApi:Authentication:SigningKey must be at least 32 characters.")
             .ValidateOnStart();
 
         services
@@ -28,7 +26,6 @@ public static class DocumentApiOptionsServiceCollectionExtensions
             .Bind(section.GetSection(nameof(DocumentApiOptions.Storage)))
             .ValidateDataAnnotations()
             .Validate(options => IsAbsoluteHttpsUri(options.ServiceUri), "DocumentApi:Storage:ServiceUri must be a valid absolute https URI.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.ContainerName), "DocumentApi:Storage:ContainerName must be configured.")
             .ValidateOnStart();
 
         services
@@ -36,7 +33,6 @@ public static class DocumentApiOptionsServiceCollectionExtensions
             .Bind(section.GetSection(nameof(DocumentApiOptions.Database)))
             .ValidateDataAnnotations()
             .Validate(options => IsAbsoluteHttpsUri(options.ServiceUri), "DocumentApi:Database:ServiceUri must be a valid absolute https URI.")
-            .Validate(options => !string.IsNullOrWhiteSpace(options.DatabaseName), "DocumentApi:Database:DatabaseName must be configured.")
             .Validate(options => !options.DatabaseName.Contains('/'), "DocumentApi:Database:DatabaseName must be a single name without '/'.")
             .ValidateOnStart();
 

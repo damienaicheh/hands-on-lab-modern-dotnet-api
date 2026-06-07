@@ -20,7 +20,7 @@ public sealed class DocumentApiOptionsValidationTests
         });
 
         var exception = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync());
-        Assert.Contains("DocumentApi:Authentication:SigningKey", exception.Message);
+        Assert.Contains(exception.Failures, failure => failure.Contains("SigningKey", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class DocumentApiOptionsValidationTests
         });
 
         var exception = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync());
-        Assert.Contains("DocumentApi:Storage:ServiceUri", exception.Message);
+        Assert.Contains(exception.Failures, failure => failure.Contains("ServiceUri", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class DocumentApiOptionsValidationTests
         });
 
         var exception = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync());
-        Assert.Contains("DocumentApi:Database:DatabaseName", exception.Message);
+        Assert.Contains(exception.Failures, failure => failure.Contains("DatabaseName", StringComparison.Ordinal));
     }
 
     [Fact]
