@@ -1,0 +1,50 @@
+# Base URL
+@authority=http://localhost:5222
+
+# Required by /documents endpoints
+@apiVersion=v1
+
+# Replace with a valid JWT before calling /documents endpoints
+@token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJEb2N1bWVudEFQSSIsImF1ZCI6IkRvY3VtZW50QVBJQ2xpZW50Iiwic3ViIjoibGFiLXVzZXIiLCJuYW1lIjoiRG9jdW1lbnRBUEkgVXNlciIsImlhdCI6MTczNTY4OTYwMCwibmJmIjoxNzM1Njg5NjAwLCJleHAiOjIxNDU5MTY4MDAsImp0aSI6ImxhYi1sb25nLWxpdmVkLXRva2VuLTAwMSJ9.ZpEWJ1HtYr_O3a4TbbsjWANwVPDxPPeg6xoBIvlzWk0
+
+### 1. Health
+GET {{authority}}/health
+Accept: application/json
+
+### 2. OpenAPI document
+GET {{authority}}/swagger/v1/swagger.json
+Accept: application/json
+
+### 3. Upload a PDF document
+# @name uploadDocument
+@fileName=sample-1.pdf
+POST {{authority}}/documents/?api-version={{apiVersion}}
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="{{fileName}}"
+Content-Type: application/pdf
+
+< ./files/{{fileName}}
+--boundary
+Content-Disposition: form-data; name="metadata"
+
+{
+	"title": "Sample PDF",
+	"description": "PDF uploaded from VS Code REST Client",
+	"source": "manual-test",
+	"tags": ["sample", "pdf", "api-test"]
+}
+--boundary--
+
+### 4. Search documents
+# @name searchDocuments
+GET {{authority}}/documents/search?api-version={{apiVersion}}&query=sample
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 5. Download the last uploaded document
+GET {{authority}}/documents/{{uploadDocument.response.body.$.id}}/content?api-version={{apiVersion}}
+Authorization: Bearer {{token}}
+Accept: application/pdf

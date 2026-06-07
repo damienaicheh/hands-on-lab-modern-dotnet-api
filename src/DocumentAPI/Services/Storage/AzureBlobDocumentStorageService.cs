@@ -1,0 +1,152 @@
+namespace DocumentAPI.Services.Storage;
+
+using System.Security.Cryptography;
+using Azure;
+using Azure.Core;
+using Azure.Identity;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
+using DocumentAPI.Helpers;
+using DocumentAPI.Options;
+using Microsoft.Extensions.Options;
+
+/// <summary>
+/// Stores and retrieves document content from Azure Blob Storage.
+/// </summary>
+public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
+{
+    private readonly BlobContainerClient _containerClient;
+    private readonly SemaphoreSlim _initializationLock = new(1, 1);
+    private volatile bool _initialized;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureBlobDocumentStorageService" /> class.
+    /// </summary>
+    /// <param name="options">The bound document API options.</param>
+    public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
+    {
+        var storageOptions = options.Value.Storage;
+        var credential = new DefaultAzureCredential();
+        var blobOptions = new BlobClientOptions
+        {
+            Retry =
+            {
+                Delay = TimeSpan.FromSeconds(2),
+                MaxRetries = 5,
+                Mode = RetryMode.Exponential,
+                MaxDelay = TimeSpan.FromSeconds(10),
+                NetworkTimeout = TimeSpan.FromSeconds(100),
+            },
+        };
+        var blobServiceClient = new BlobServiceClient(new Uri(storageOptions.ServiceUri), credential, blobOptions);
+        _containerClient = blobServiceClient.GetBlobContainerClient(storageOptions.ContainerName);
+    }
+
+    /// <inheritdoc />
+    public async Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken)
+    {
+        await EnsureInitializedAsync(cancellationToken);
+
+        var blobClient = _containerClient.GetBlobClient(contentHash);
+
+        var expectedHash = FileHelper.ComputeMd5(content);
+
+        await using var stream = new MemoryStream(content, writable: false);
+        var response = await blobClient.UploadAsync(
+            stream,
+            new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders
+                {
+                    ContentHash = expectedHash,
+                },
+            },
+            cancellationToken);
+
+        await VerifyContentIntegrityAsync(blobClient, contentHash, expectedHash, response.Value.ContentHash, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
+    {
+        await EnsureInitializedAsync(cancellationToken);
+        await _containerClient.DeleteBlobIfExistsAsync(contentHash, DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)
+    {
+        await EnsureInitializedAsync(cancellationToken);
+
+        try
+        {
+            return await _containerClient.GetBlobClient(contentHash).OpenReadAsync(cancellationToken: cancellationToken);
+        }
+        catch (RequestFailedException exception) when (exception.Status == StatusCodes.Status404NotFound)
+        {
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> CanConnectAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await EnsureInitializedAsync(cancellationToken);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Ensures that the target blob container exists before any storage operation runs.
+    /// </summary>
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
+    {
+        if (_initialized)
+        {
+            return;
+        }
+
+        await _initializationLock.WaitAsync(cancellationToken);
+
+        try
+        {
+            if (_initialized)
+            {
+                return;
+            }
+
+            await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+            _initialized = true;
+        }
+        finally
+        {
+            _initializationLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the MD5 hash reported by Azure Blob Storage matches the locally computed hash and removes
+    /// the blob when a mismatch indicates the content was corrupted in transit.
+    /// </summary>
+    private static async Task VerifyContentIntegrityAsync(
+        BlobClient blobClient,
+        string contentHash,
+        byte[] expectedHash,
+        byte[]? storedHash,
+        CancellationToken cancellationToken)
+    {
+        if (storedHash is not null && CryptographicOperations.FixedTimeEquals(expectedHash, storedHash))
+        {
+            return;
+        }
+
+        await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
+        throw new DocumentStorageIntegrityException(contentHash, expectedHash, storedHash);
+    }
+}
