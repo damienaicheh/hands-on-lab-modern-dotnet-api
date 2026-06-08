@@ -3,6 +3,6 @@
     <Project Path="src/DocumentAPI/DocumentAPI.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="test/DocumentAPI.Tests/DocumentAPI.Tests.csproj" />
+    <Project Path="tests/DocumentAPI.Tests/DocumentAPI.Tests.csproj" />
   </Folder>
 </Solution>
