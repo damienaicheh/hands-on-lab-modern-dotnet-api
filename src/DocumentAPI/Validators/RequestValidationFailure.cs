@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Validators;
+namespace DocumentAPI.Validators;
 
 using Microsoft.AspNetCore.Mvc;
 

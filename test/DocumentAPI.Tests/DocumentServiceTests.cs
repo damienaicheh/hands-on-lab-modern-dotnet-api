@@ -8,6 +8,7 @@ using DocumentAPI.Extensions;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Documents;
+using DocumentAPI.Services.Documents.Contracts;
 using DocumentAPI.Services.Documents.Exceptions;
 using DocumentAPI.Services.Monitoring;
 using DocumentAPI.Services.Storage;

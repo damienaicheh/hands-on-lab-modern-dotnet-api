@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Documents;
+namespace DocumentAPI.Services.Documents.Contracts;
 
 /// <summary>
 /// Tracks a monotonic version used to invalidate cached document search results when the catalog changes.

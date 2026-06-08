@@ -7,10 +7,11 @@ using DocumentAPI.DTOs;
 using DocumentAPI.Services.Documents;
 using DocumentAPI.Services.Documents.Exceptions;
 using DocumentAPI.Services.Storage;
-using DocumentAPI.Services.Validators.Documents;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Primitives;
+using DocumentAPI.Validators.Documents;
+using DocumentAPI.Services.Documents.Contracts;
 
 /// <summary>
 /// Registers the document-related Minimal API endpoints.

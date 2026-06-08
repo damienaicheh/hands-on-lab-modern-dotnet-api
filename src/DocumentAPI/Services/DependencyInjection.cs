@@ -4,10 +4,11 @@ using Azure.Identity;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Documents;
+using DocumentAPI.Services.Documents.Contracts;
 using DocumentAPI.Services.Health;
 using DocumentAPI.Services.Monitoring;
 using DocumentAPI.Services.Storage;
-using DocumentAPI.Services.Validators.Documents;
+using DocumentAPI.Validators.Documents;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 

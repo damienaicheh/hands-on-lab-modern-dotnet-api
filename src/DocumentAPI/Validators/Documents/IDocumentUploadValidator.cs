@@ -1,6 +1,7 @@
-namespace DocumentAPI.Services.Validators.Documents;
+namespace DocumentAPI.Validators.Documents;
 
 using DocumentAPI.DTOs;
+using DocumentAPI.Validators;
 using Microsoft.AspNetCore.Http;
 
 /// <summary>

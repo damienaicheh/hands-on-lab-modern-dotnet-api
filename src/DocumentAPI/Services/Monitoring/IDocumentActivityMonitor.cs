@@ -1,7 +1,7 @@
 namespace DocumentAPI.Services.Monitoring;
 
 using DocumentAPI.DTOs;
-using DocumentAPI.Services.Documents;
+using DocumentAPI.Services.Documents.Contracts;
 
 /// <summary>
 /// Defines the business-level telemetry emitted for document operations.

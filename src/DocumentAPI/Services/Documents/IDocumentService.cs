@@ -1,6 +1,7 @@
 namespace DocumentAPI.Services.Documents;
 
 using DocumentAPI.DTOs;
+using DocumentAPI.Services.Documents.Contracts;
 
 /// <summary>
 /// Defines the core document operations exposed to the API layer.

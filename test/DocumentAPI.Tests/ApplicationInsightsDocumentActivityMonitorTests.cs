@@ -1,7 +1,7 @@
 namespace DocumentAPI.Tests;
 
 using DocumentAPI.DTOs;
-using DocumentAPI.Services.Documents;
+using DocumentAPI.Services.Documents.Contracts;
 using DocumentAPI.Services.Monitoring;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;

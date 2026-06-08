@@ -15,6 +15,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
+using DocumentAPI.Services.Documents.Contracts;
 
 /// <summary>
 /// Implements the document workflow used by the API.

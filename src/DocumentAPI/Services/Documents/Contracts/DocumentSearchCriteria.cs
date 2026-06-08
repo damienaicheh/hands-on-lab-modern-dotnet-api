@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Documents;
+namespace DocumentAPI.Services.Documents.Contracts;
 
 /// <summary>
 /// Represents the search criteria that can be applied to document queries.

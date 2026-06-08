@@ -1,4 +1,4 @@
-namespace DocumentAPI.Services.Documents;
+namespace DocumentAPI.Services.Documents.Contracts;
 
 /// <summary>
 /// Represents the binary content returned for a downloaded document.
