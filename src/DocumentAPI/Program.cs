@@ -125,7 +125,7 @@ if (!app.Environment.IsDevelopment())
 	app.UseHttpsRedirection();
 }
 
-if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Internal"))
+if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();
 	app.UseSwaggerUI(options =>
