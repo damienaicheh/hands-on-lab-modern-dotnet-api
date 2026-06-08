@@ -1,5 +1,6 @@
 namespace DocumentAPI.Tests;
 
+using DocumentAPI.Extensions;
 using DocumentAPI.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

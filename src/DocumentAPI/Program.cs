@@ -5,6 +5,7 @@ using DocumentAPI.Endpoints;
 using DocumentAPI.Observability;
 using DocumentAPI.Options;
 using DocumentAPI.Services;
+using DocumentAPI.Extensions;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpLogging;

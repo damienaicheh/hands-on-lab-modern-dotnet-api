@@ -4,9 +4,9 @@ using System.Security.Cryptography;
 using System.Text;
 using DocumentAPI.DTOs;
 using DocumentAPI.Entities;
+using DocumentAPI.Extensions;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
-using DocumentAPI.Helpers;
 using DocumentAPI.Services.Documents;
 using DocumentAPI.Services.Documents.Exceptions;
 using DocumentAPI.Services.Monitoring;
@@ -40,7 +40,7 @@ public sealed class DocumentServiceTests
                 Description = "Minimal API lab",
                 Source = "unit-test",
                 Tags = ["lab", "notes"],
-                ContentHash = FileHelper.ComputeContentHash(Encoding.UTF8.GetBytes("hello world")),
+                ContentHash = Encoding.UTF8.GetBytes("hello world").ComputeContentHash(),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -114,7 +114,7 @@ public sealed class DocumentServiceTests
                 FileName = "existing.txt",
                 ContentType = "text/plain",
                 Size = duplicateBytes.Length,
-                ContentHash = FileHelper.ComputeContentHash(duplicateBytes),
+                ContentHash = duplicateBytes.ComputeContentHash(),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -167,7 +167,7 @@ public sealed class DocumentServiceTests
         var service = CreateService(dbContext, storage, activityMonitor);
 
         var content = Encoding.UTF8.GetBytes("stored-content");
-        var contentHash = FileHelper.ComputeContentHash(content);
+        var contentHash = content.ComputeContentHash();
         storage.Seed(contentHash, content);
 
         dbContext.Documents.Add(

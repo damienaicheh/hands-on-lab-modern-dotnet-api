@@ -1,4 +1,6 @@
-namespace DocumentAPI.Options;
+namespace DocumentAPI.Extensions;
+
+using DocumentAPI.Options;
 
 /// <summary>
 /// Registers strongly typed options for the Document API and validates critical configuration at startup.
