@@ -12,6 +12,12 @@ enum HealthStatus {
 
 model HealthyOrDegradedStatus {
   status: HealthStatus.Healthy | HealthStatus.Degraded;
+  checks?: Record<HealthCheckStatus>;
+}
+
+model HealthCheckStatus {
+  status: HealthStatus;
+  description?: string;
 }
 
 model UnhealthyStatus {

@@ -1,5 +1,6 @@
 namespace DocumentAPI.Endpoints;
 
+using System.Linq;
 using DocumentAPI.Models;
 using DocumentAPI.Services.Health;
 
@@ -35,8 +36,27 @@ public static class HealthEndpoints
     {
         var status = await healthStatusService.GetStatusAsync(cancellationToken);
 
-        return status.IsAvailable
-            ? Results.Ok(new HealthyOrDegradedStatus { Status = status.Status })
-            : Results.Json(new UnhealthyStatus { Status = status.Status }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        if (!status.IsAvailable)
+        {
+            return Results.Json(new UnhealthyStatus { Status = status.Status }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        if (!string.Equals(status.Status, "Degraded", StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.Ok(new HealthyOrDegradedStatus { Status = status.Status });
+        }
+
+        return Results.Ok(new HealthyOrDegradedStatus
+        {
+            Status = status.Status,
+            Checks = status.Checks.ToDictionary(
+                pair => pair.Key,
+                pair => new HealthCheckStatus
+                {
+                    Status = pair.Value.Status,
+                    Description = pair.Value.Description,
+                },
+                StringComparer.Ordinal),
+        });
     }
 }

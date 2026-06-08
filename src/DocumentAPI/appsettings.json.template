@@ -1,0 +1,37 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "DocumentApi": {
+    "Authentication": {
+      "RequireHttpsMetadata": true,
+      "Issuer": "DocumentAPI",
+      "Audience": "DocumentAPIClient",
+      "SigningKey": "document-api-signing-key-to-randomly-generate"
+    },
+    "ApplicationInsights": {
+      "Enabled": true,
+      "ConnectionString": "<Your Application Insights Connection String>",
+      "EnableAdaptiveSampling": true,
+      "CloudRoleName": "DocumentAPI"
+    },
+    "Upload": {
+      "MaxFileSizeBytes": 10485760
+    },
+    "Storage": {
+      "ServiceUri": "https://<YOUR STORAGE ACCOUNT NAME>.blob.core.windows.net/",
+      "ContainerName": "documents"
+    },
+    "Database": {
+      "ServiceUri": "https://<YOUR SQL SERVER NAME>.database.windows.net",
+      "DatabaseName": "DocumentDb"
+    },
+    "Search": {
+      "CacheTtlSeconds": 60
+    }
+  },
+  "AllowedHosts": "*"
+}

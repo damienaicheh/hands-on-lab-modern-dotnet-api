@@ -26,7 +26,7 @@ public static class DependencyInjection
     {
         services.AddDbContext<DocumentDbContext>(builder => ConfigureDatabase(builder, options.Database));
 
-        // Use Singleton for shared stateless infrastructure
+        // Singleton: shared app-wide infrastructure and cache invalidation state.
         services.AddSingleton<IDocumentStorageService, AzureBlobDocumentStorageService>();
 
         services.AddSingleton<IDocumentActivityMonitor, ApplicationInsightsDocumentActivityMonitor>();

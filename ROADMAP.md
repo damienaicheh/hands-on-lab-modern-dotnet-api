@@ -32,11 +32,3 @@
 
 Diagram de sequence des appels d'API
 
-## TODO
-
-Vérifier retry pattern pour l'upload du document dans le Storage Account
-Vérifier les cas d'erreurs
-Vérifier si les commentaires sont tous bons
-Vérifier s'il n'y a pas de code mort
-Challenger la connection à la BDD
-Vérifier le statut dégragé du health check si on peut faire mieux

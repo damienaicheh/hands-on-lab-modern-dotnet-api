@@ -7,8 +7,11 @@ using System.Text;
 using System.Text.Json;
 using DocumentAPI.DTOs;
 using DocumentAPI.Models;
+using DocumentAPI.Services.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Covers end-to-end HTTP behavior for the Document API endpoints.
@@ -44,6 +47,47 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.NotNull(payload);
         Assert.False(string.IsNullOrWhiteSpace(payload!.Status));
+    }
+
+    /// <summary>
+    /// Verifies that a degraded health response includes per-dependency checks.
+    /// </summary>
+    [Fact]
+    public async Task HealthReturnsChecksWhenDegraded()
+    {
+        using var baseFactory = new DocumentApiFactory(_sqlServer.ConnectionString);
+        using var degradedFactory = baseFactory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                var descriptorsToRemove = services
+                    .Where(descriptor => descriptor.ServiceType == typeof(IDocumentStorageService))
+                    .ToList();
+
+                foreach (var descriptor in descriptorsToRemove)
+                {
+                    services.Remove(descriptor);
+                }
+
+                services.AddSingleton<IDocumentStorageService, UnavailableDocumentStorage>();
+            });
+        });
+        using var client = degradedFactory.CreateClient();
+
+        var response = await client.GetAsync("/health");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<HealthyOrDegradedStatus>();
+
+        Assert.NotNull(payload);
+        Assert.Equal("Degraded", payload!.Status);
+        Assert.NotNull(payload.Checks);
+
+        var checks = payload.Checks!;
+        Assert.Equal("Healthy", checks["database"].Status);
+        Assert.Equal("Unhealthy", checks["storage"].Status);
+        Assert.False(string.IsNullOrWhiteSpace(checks["storage"].Description));
     }
 
     /// <summary>
@@ -260,5 +304,28 @@ public sealed class DocumentApiEndpointsTests
         form.Add(metadataContent, "metadata");
 
         return form;
+    }
+
+    private sealed class UnavailableDocumentStorage : IDocumentStorageService
+    {
+        public Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Save is not expected for health tests.");
+        }
+
+        public Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("Delete is not expected for health tests.");
+        }
+
+        public Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException("OpenRead is not expected for health tests.");
+        }
+
+        public Task<bool> CanConnectAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(false);
+        }
     }
 }

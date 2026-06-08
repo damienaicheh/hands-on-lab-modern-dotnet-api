@@ -18,17 +18,26 @@ internal sealed class DocumentHealthStatusService(IDocumentStorageService storag
     {
         var storageHealthy = await _storage.CanConnectAsync(cancellationToken);
         var databaseHealthy = await _dbContext.Database.CanConnectAsync(cancellationToken);
+        var checks = new Dictionary<string, HealthDependencyState>(StringComparer.Ordinal)
+        {
+            ["database"] = databaseHealthy
+                ? new HealthDependencyState("Healthy")
+                : new HealthDependencyState("Unhealthy", "Database is unreachable."),
+            ["storage"] = storageHealthy
+                ? new HealthDependencyState("Healthy")
+                : new HealthDependencyState("Unhealthy", "Storage is unreachable."),
+        };
 
         if (storageHealthy && databaseHealthy)
         {
-            return new HealthStateResult("Healthy", true);
+            return new HealthStateResult("Healthy", true, checks);
         }
 
         if (storageHealthy || databaseHealthy)
         {
-            return new HealthStateResult("Degraded", true);
+            return new HealthStateResult("Degraded", true, checks);
         }
 
-        return new HealthStateResult("Unhealthy", false);
+        return new HealthStateResult("Unhealthy", false, checks);
     }
 }
