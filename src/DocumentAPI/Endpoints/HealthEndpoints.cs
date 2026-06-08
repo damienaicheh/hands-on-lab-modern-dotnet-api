@@ -21,7 +21,7 @@ public static class HealthEndpoints
             .AllowAnonymous()
             .Produces<HealthyOrDegradedStatus>(StatusCodes.Status200OK)
             .Produces<UnhealthyStatus>(StatusCodes.Status503ServiceUnavailable)
-            .Produces<ApiError>(StatusCodes.Status400BadRequest);
+            .ProducesProblem(StatusCodes.Status400BadRequest);
 
         return endpoints;
     }
