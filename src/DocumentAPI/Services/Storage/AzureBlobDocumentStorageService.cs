@@ -6,7 +6,7 @@ using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
-using DocumentAPI.Helpers;
+using DocumentAPI.Extensions;
 using DocumentAPI.Options;
 using Microsoft.Extensions.Options;
 
@@ -49,7 +49,7 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
 
         var blobClient = _containerClient.GetBlobClient(contentHash);
 
-        var expectedHash = FileHelper.ComputeMd5(content);
+        var expectedHash = content.ComputeMd5();
 
         await using var stream = new MemoryStream(content, writable: false);
         var response = await blobClient.UploadAsync(

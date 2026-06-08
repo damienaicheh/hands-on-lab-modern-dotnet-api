@@ -4,7 +4,7 @@ using Azure;
 using System.Diagnostics;
 using DocumentAPI.DTOs;
 using DocumentAPI.Entities;
-using DocumentAPI.Helpers;
+using DocumentAPI.Extensions;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Documents.Exceptions;
@@ -91,7 +91,7 @@ internal sealed class DocumentService(
     public async Task<DocumentDto> UploadAsync(DocumentUploadCommand command, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        var hash = FileHelper.ComputeContentHash(command.Content);
+        var hash = command.Content.ComputeContentHash();
         var existingDocument = await _resiliencePipeline.ExecuteAsync(
             async token => await _dbContext.Documents
                 .AsNoTracking()
