@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text;
 using Asp.Versioning;
 using DocumentAPI.Endpoints;
@@ -12,6 +11,7 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,40 +90,42 @@ builder.Services.AddApiVersioning(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+builder.Services.AddOpenApi("v1", options =>
 {
-	var bearerSecurityScheme = new OpenApiSecurityScheme
+	options.AddDocumentTransformer((document, context, cancellationToken) =>
 	{
-		Name = "Authorization",
-		Type = SecuritySchemeType.Http,
-		Scheme = "bearer",
-		BearerFormat = "JWT",
-		In = ParameterLocation.Header,
-		Description = "Provide a valid JWT bearer token.",
-	};
+		document.Info = new OpenApiInfo
+		{
+			Title = "DocumentAPI",
+			Version = "v1",
+			Description = "Document management API built with .NET 10 Minimal APIs.",
+		};
 
-	options.SwaggerDoc("v1", new OpenApiInfo
-	{
-		Title = "DocumentAPI",
-		Version = "v1",
-		Description = "Document management API built with .NET 10 Minimal APIs.",
+		document.Components ??= new OpenApiComponents();
+		document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+		document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+		{
+			Name = "Authorization",
+			Type = SecuritySchemeType.Http,
+			Scheme = "bearer",
+			BearerFormat = "JWT",
+			In = ParameterLocation.Header,
+			Description = "Provide a valid JWT bearer token.",
+		};
+
+		return Task.CompletedTask;
 	});
 
-	options.AddSecurityDefinition("Bearer", bearerSecurityScheme);
-
-	options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+	options.AddOperationTransformer((operation, context, cancellationToken) =>
 	{
-		[new OpenApiSecuritySchemeReference("Bearer", hostDocument: document, externalResource: null)] = [],
+		operation.Security ??= [];
+		operation.Security.Add(new OpenApiSecurityRequirement
+		{
+			[new OpenApiSecuritySchemeReference("Bearer")] = [],
+		});
+
+		return Task.CompletedTask;
 	});
-
-	// Include XML comments if available for better Swagger documentation.
-	var xmlFileName = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-	var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFileName);
-
-	if (File.Exists(xmlPath))
-	{
-		options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
-	}
 });
 
 builder.Services.AddDocumentServices(documentApiOptions);
@@ -139,12 +141,8 @@ if (!app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
-	app.UseSwagger();
-	app.UseSwaggerUI(options =>
-	{
-		options.SwaggerEndpoint("/swagger/v1/swagger.json", "DocumentAPI v1");
-		options.RoutePrefix = "swagger";
-	});
+	app.MapOpenApi();
+	app.MapScalarApiReference();
 }
 
 app.UseHttpLogging();

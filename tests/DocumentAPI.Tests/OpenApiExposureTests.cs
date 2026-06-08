@@ -5,27 +5,27 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Hosting;
 
 /// <summary>
-/// Validates Swagger endpoint exposure by environment.
+/// Validates OpenAPI endpoint exposure by environment.
 /// </summary>
 [Collection(SqlServerCollection.Name)]
-public sealed class SwaggerExposureTests
+public sealed class OpenApiExposureTests
 {
     private readonly SqlServerFixture _sqlServer;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SwaggerExposureTests" /> class.
+    /// Initializes a new instance of the <see cref="OpenApiExposureTests" /> class.
     /// </summary>
     /// <param name="sqlServer">The shared SQL Server container fixture.</param>
-    public SwaggerExposureTests(SqlServerFixture sqlServer)
+    public OpenApiExposureTests(SqlServerFixture sqlServer)
     {
         _sqlServer = sqlServer;
     }
 
     /// <summary>
-    /// Verifies that Swagger JSON is available in Development.
+    /// Verifies that OpenAPI JSON is available in Development.
     /// </summary>
     [Fact]
-    public async Task SwaggerJsonIsAvailableInDevelopment()
+    public async Task OpenApiJsonIsAvailableInDevelopment()
     {
         using var _ = ApplyAuthenticationEnvironmentVariables();
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString, Environments.Development);
@@ -34,16 +34,16 @@ public sealed class SwaggerExposureTests
             BaseAddress = new Uri("https://localhost"),
         });
 
-        var response = await client.GetAsync("/swagger/v1/swagger.json");
+        var response = await client.GetAsync("/openapi/v1.json");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     /// <summary>
-    /// Verifies that Swagger JSON is not publicly exposed in Production.
+    /// Verifies that OpenAPI JSON is not publicly exposed in Production.
     /// </summary>
     [Fact]
-    public async Task SwaggerJsonIsNotAvailableInProduction()
+    public async Task OpenApiJsonIsNotAvailableInProduction()
     {
         using var _ = ApplyAuthenticationEnvironmentVariables();
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString, Environments.Production);
@@ -52,7 +52,7 @@ public sealed class SwaggerExposureTests
             BaseAddress = new Uri("https://localhost"),
         });
 
-        var response = await client.GetAsync("/swagger/v1/swagger.json");
+        var response = await client.GetAsync("/openapi/v1.json");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
