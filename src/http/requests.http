@@ -2,7 +2,7 @@
 @authority=http://localhost:5222
 
 # Required by /documents endpoints
-@apiVersion=v1
+@apiVersion=1
 
 # Replace with a valid JWT before calling /documents endpoints
 @token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJEb2N1bWVudEFQSSIsImF1ZCI6IkRvY3VtZW50QVBJQ2xpZW50Iiwic3ViIjoibGFiLXVzZXIiLCJuYW1lIjoiRG9jdW1lbnRBUEkgVXNlciIsImlhdCI6MTczNTY4OTYwMCwibmJmIjoxNzM1Njg5NjAwLCJleHAiOjIxNDU5MTY4MDAsImp0aSI6ImxhYi1sb25nLWxpdmVkLXRva2VuLTAwMSJ9.ZpEWJ1HtYr_O3a4TbbsjWANwVPDxPPeg6xoBIvlzWk0

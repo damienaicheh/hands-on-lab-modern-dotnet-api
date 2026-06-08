@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text;
+using Asp.Versioning;
 using DocumentAPI.Endpoints;
 using DocumentAPI.Observability;
 using DocumentAPI.Options;
@@ -79,6 +80,12 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 {
 	options.ConnectionString = applicationInsightsConnectionString;
 	options.EnableAdaptiveSampling = applicationInsightsOptions.EnableAdaptiveSampling;
+});
+
+builder.Services.AddApiVersioning(options =>
+{
+	options.AssumeDefaultVersionWhenUnspecified = false;
+	options.ReportApiVersions = true;
 });
 
 builder.Services.AddEndpointsApiExplorer();
