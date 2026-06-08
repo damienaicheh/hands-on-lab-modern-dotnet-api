@@ -90,8 +90,16 @@ internal sealed class DocumentService(
     /// <inheritdoc />
     public async Task<DocumentDto> UploadAsync(DocumentUploadCommand command, CancellationToken cancellationToken)
     {
+        if (!command.Content.CanSeek)
+        {
+            throw new ArgumentException("The upload content stream must support seeking.", nameof(command));
+        }
+
         var stopwatch = Stopwatch.StartNew();
-        var hash = command.Content.ComputeContentHash();
+        var md5 = command.Content.ComputeMd5();
+        var hash = Convert.ToHexString(md5);
+        command.Content.Position = 0;
+
         var existingDocument = await _resiliencePipeline.ExecuteAsync(
             async token => await _dbContext.Documents
                 .AsNoTracking()
@@ -104,7 +112,7 @@ internal sealed class DocumentService(
             _activityMonitor.TrackUploadDuplicate(
                 existingDocument.Id,
                 command.ContentType,
-                command.Content.LongLength,
+                command.Length,
                 stopwatch.Elapsed.TotalMilliseconds);
             throw new DuplicateDocumentException(existingDocument.Id);
         }
@@ -114,7 +122,7 @@ internal sealed class DocumentService(
 
         try
         {
-            await _storage.SaveAsync(hash, command.Content, cancellationToken);
+            await _storage.SaveAsync(hash, command.Content, md5, cancellationToken);
             blobUploaded = true;
 
             var (title, description, source, tags) = NormalizeMetadata(command.Metadata);
@@ -123,7 +131,7 @@ internal sealed class DocumentService(
                 Id = documentId,
                 FileName = command.FileName,
                 ContentType = command.ContentType,
-                Size = command.Content.LongLength,
+                Size = command.Length,
                 Title = title,
                 Description = description,
                 Source = source,
@@ -152,7 +160,7 @@ internal sealed class DocumentService(
                 hash,
                 command.FileName,
                 command.ContentType,
-                command.Content.LongLength,
+                command.Length,
                 stopwatch.Elapsed.TotalMilliseconds);
             throw;
         }
@@ -208,7 +216,7 @@ internal sealed class DocumentService(
             _activityMonitor.TrackUploadDuplicate(
                 conflictingDocument.Id,
                 command.ContentType,
-                command.Content.LongLength,
+                command.Length,
                 stopwatch.Elapsed.TotalMilliseconds);
             throw new DuplicateDocumentException(conflictingDocument.Id);
         }
@@ -221,7 +229,7 @@ internal sealed class DocumentService(
                 hash,
                 command.FileName,
                 command.ContentType,
-                command.Content.LongLength,
+                command.Length,
                 stopwatch.Elapsed.TotalMilliseconds);
             throw;
         }

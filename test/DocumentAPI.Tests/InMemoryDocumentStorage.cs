@@ -11,10 +11,11 @@ internal sealed class InMemoryDocumentStorage : IDocumentStorageService
     private readonly ConcurrentDictionary<string, byte[]> _documents = new(StringComparer.Ordinal);
 
     /// <inheritdoc />
-    public Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken)
+    public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
     {
-        _documents[contentHash] = [.. content];
-        return Task.CompletedTask;
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, cancellationToken);
+        _documents[contentHash] = buffer.ToArray();
     }
 
     /// <inheritdoc />

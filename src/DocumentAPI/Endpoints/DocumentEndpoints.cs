@@ -145,13 +145,11 @@ public static class DocumentEndpoints
         }
 
         await using var fileStream = file!.OpenReadStream();
-        using var buffer = new MemoryStream();
-        await fileStream.CopyToAsync(buffer, cancellationToken);
 
         try
         {
             var document = await documentService.UploadAsync(
-                new DocumentUploadCommand(file.FileName, file.ContentType, buffer.ToArray(), metadataResult.Metadata!),
+                new DocumentUploadCommand(file.FileName, file.ContentType, fileStream, file.Length, metadataResult.Metadata!),
                 cancellationToken);
 
             return Results.Json(document, statusCode: StatusCodes.Status201Created);

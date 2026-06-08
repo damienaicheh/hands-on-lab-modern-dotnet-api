@@ -40,7 +40,7 @@ public sealed class DocumentServiceTests
                 Description = "Minimal API lab",
                 Source = "unit-test",
                 Tags = ["lab", "notes"],
-                ContentHash = Encoding.UTF8.GetBytes("hello world").ComputeContentHash(),
+                ContentHash = Encoding.UTF8.GetBytes("hello world").Md5ToHexString(),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -75,7 +75,8 @@ public sealed class DocumentServiceTests
         var command = new DocumentUploadCommand(
             "notes.txt",
             "text/plain",
-            Encoding.UTF8.GetBytes("hello world"),
+            new MemoryStream(Encoding.UTF8.GetBytes("hello world")),
+            Encoding.UTF8.GetByteCount("hello world"),
             new DocumentMetadataDto
             {
                 Title = "  Workshop Notes  ",
@@ -114,7 +115,7 @@ public sealed class DocumentServiceTests
                 FileName = "existing.txt",
                 ContentType = "text/plain",
                 Size = duplicateBytes.Length,
-                ContentHash = duplicateBytes.ComputeContentHash(),
+                ContentHash = duplicateBytes.Md5ToHexString(),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -126,7 +127,8 @@ public sealed class DocumentServiceTests
         var command = new DocumentUploadCommand(
             "incoming.txt",
             "text/plain",
-            duplicateBytes,
+            new MemoryStream(duplicateBytes),
+            duplicateBytes.Length,
             new DocumentMetadataDto());
 
         var exception = await Assert.ThrowsAsync<DuplicateDocumentException>(() => service.UploadAsync(command, CancellationToken.None));
@@ -167,7 +169,7 @@ public sealed class DocumentServiceTests
         var service = CreateService(dbContext, storage, activityMonitor);
 
         var content = Encoding.UTF8.GetBytes("stored-content");
-        var contentHash = content.ComputeContentHash();
+        var contentHash = content.Md5ToHexString();
         storage.Seed(contentHash, content);
 
         dbContext.Documents.Add(
@@ -272,11 +274,12 @@ public sealed class DocumentServiceTests
 
         public int SaveCallCount { get; private set; }
 
-        public Task SaveAsync(string contentHash, byte[] content, CancellationToken cancellationToken)
+        public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
         {
             SaveCallCount++;
-            _contentByKey[contentHash] = [.. content];
-            return Task.CompletedTask;
+            using var buffer = new MemoryStream();
+            await content.CopyToAsync(buffer, cancellationToken);
+            _contentByKey[contentHash] = buffer.ToArray();
         }
 
         public Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
