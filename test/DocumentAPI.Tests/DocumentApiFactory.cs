@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 
 /// <summary>
@@ -23,6 +24,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
     private const string Issuer = "DocumentAPI";
     private const string Audience = "DocumentAPIClient";
     private const string SigningKey = "document-api-signing-key-to-randomly-generate";
+    private readonly string _environmentName;
 
     private readonly IReadOnlyDictionary<string, string?> _configurationOverrides;
     private readonly string _databaseConnectionString;
@@ -39,6 +41,22 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
             InitialCatalog = $"DocumentApi_{Guid.NewGuid():N}",
         }.ConnectionString;
         _configurationOverrides = configurationOverrides ?? new Dictionary<string, string?>();
+        _environmentName = Environments.Development;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DocumentApiFactory" /> class.
+    /// </summary>
+    /// <param name="sqlServerConnectionString">The connection string of the shared SQL Server container.</param>
+    /// <param name="environmentName">The ASP.NET Core environment name.</param>
+    /// <param name="configurationOverrides">Optional configuration overrides applied to the in-memory test host.</param>
+    public DocumentApiFactory(
+        string sqlServerConnectionString,
+        string environmentName,
+        IReadOnlyDictionary<string, string?>? configurationOverrides = null)
+        : this(sqlServerConnectionString, configurationOverrides)
+    {
+        _environmentName = environmentName;
     }
 
     /// <summary>
@@ -64,7 +82,7 @@ public sealed class DocumentApiFactory : WebApplicationFactory<Program>
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment(_environmentName);
         builder.ConfigureAppConfiguration((_, configurationBuilder) =>
         {
             var settings = new Dictionary<string, string?>
