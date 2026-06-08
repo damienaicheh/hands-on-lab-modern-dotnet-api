@@ -4,7 +4,7 @@ using Azure;
 using System.Diagnostics;
 using DocumentAPI.DTOs;
 using DocumentAPI.Entities;
-using DocumentAPI.Helpers;
+using DocumentAPI.Extensions;
 using DocumentAPI.Options;
 using DocumentAPI.Persistence;
 using DocumentAPI.Services.Documents.Exceptions;
@@ -96,9 +96,10 @@ internal sealed class DocumentService(
         }
 
         var stopwatch = Stopwatch.StartNew();
-        var md5 = FileHelper.ComputeMd5(command.Content);
+        var md5 = command.Content.ComputeMd5();
         var hash = Convert.ToHexString(md5);
         command.Content.Position = 0;
+
         var existingDocument = await _resiliencePipeline.ExecuteAsync(
             async token => await _dbContext.Documents
                 .AsNoTracking()
