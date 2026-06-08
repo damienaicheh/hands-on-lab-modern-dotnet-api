@@ -1,5 +1,6 @@
 namespace DocumentAPI.Endpoints;
 
+using Asp.Versioning;
 using Azure;
 using System.Text.Json;
 using DocumentAPI.DTOs;
@@ -26,11 +27,13 @@ public static class DocumentEndpoints
     /// <returns>The original endpoint route builder.</returns>
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/documents")
+        var documentGroup = endpoints.NewVersionedApi("Documents");
+        var v1Group = documentGroup.MapGroup("/documents")
             .WithTags("Documents")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .HasApiVersion(new ApiVersion(1));
 
-        group.MapGet("/search", SearchAsync)
+        v1Group.MapGet("/search", SearchAsync)
             .WithName("Documents_search")
             .Produces<IReadOnlyList<DocumentDto>>(StatusCodes.Status200OK)
             .Produces<ApiError>(StatusCodes.Status400BadRequest)
@@ -38,7 +41,7 @@ public static class DocumentEndpoints
             .Produces<ApiError>(StatusCodes.Status503ServiceUnavailable)
             .Produces<UnauthorizedError>(StatusCodes.Status401Unauthorized);
 
-        group.MapPost("/", UploadAsync)
+        v1Group.MapPost("/", UploadAsync)
             .WithName("Documents_upload")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<DocumentDto>(StatusCodes.Status201Created)
@@ -50,7 +53,7 @@ public static class DocumentEndpoints
             .Produces<ApiError>(StatusCodes.Status413PayloadTooLarge)
             .Produces<UnauthorizedError>(StatusCodes.Status401Unauthorized);
 
-        group.MapGet("/{id}/content", DownloadAsync)
+        v1Group.MapGet("/{id}/content", DownloadAsync)
             .WithName("Documents_download")
             .Produces(StatusCodes.Status200OK)
             .Produces<ApiError>(StatusCodes.Status400BadRequest)
@@ -66,7 +69,6 @@ public static class DocumentEndpoints
     /// Searches documents using free-text and metadata filters.
     /// </summary>
     private static async Task<IResult> SearchAsync(
-        [FromQuery(Name = ApiVersionValidation.ParameterName)] string? apiVersion,
         [FromQuery] string? query,
         [FromQuery] string? title,
         [FromQuery] string? tag,
@@ -76,12 +78,6 @@ public static class DocumentEndpoints
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
-        var versionError = ApiVersionValidation.Validate(apiVersion);
-
-        if (versionError is not null)
-        {
-            return Results.BadRequest(versionError);
-        }
 
         try
         {
@@ -131,19 +127,12 @@ public static class DocumentEndpoints
     /// </summary>
     private static async Task<IResult> UploadAsync(
         HttpRequest request,
-        [FromQuery(Name = ApiVersionValidation.ParameterName)] string? apiVersion,
         IDocumentUploadValidator validator,
         IDocumentService documentService,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
-        var versionError = ApiVersionValidation.Validate(apiVersion);
-
-        if (versionError is not null)
-        {
-            return Results.BadRequest(versionError);
-        }
 
         if (!request.HasFormContentType)
         {
@@ -254,19 +243,12 @@ public static class DocumentEndpoints
     /// Downloads the binary content of a document by identifier.
     /// </summary>
     private static async Task<IResult> DownloadAsync(
-        [FromQuery(Name = ApiVersionValidation.ParameterName)] string? apiVersion,
         string id,
         IDocumentService documentService,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
-        var versionError = ApiVersionValidation.Validate(apiVersion);
-
-        if (versionError is not null)
-        {
-            return Results.BadRequest(versionError);
-        }
 
         try
         {
