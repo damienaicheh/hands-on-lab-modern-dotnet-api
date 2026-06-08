@@ -2,6 +2,22 @@
   <Folder Name="/src/">
     <Project Path="src/DocumentAPI/DocumentAPI.csproj" />
   </Folder>
+  <Folder Name="/src/http/">
+    <File Path="src/http/requests.http" />
+  </Folder>
+  <Folder Name="/src/http/files/">
+    <File Path="src/http/files/sample-1.pdf" />
+    <File Path="src/http/files/sample-2.pdf" />
+    <File Path="src/http/files/sample-3.pdf" />
+    <File Path="src/http/files/sample-4.pdf" />
+    <File Path="src/http/files/sample-5.pdf" />
+    <File Path="src/http/files/sample-a4.pdf" />
+    <File Path="src/http/files/sample-images-fit.pdf" />
+    <File Path="src/http/files/sample-invoice.pdf" />
+    <File Path="src/http/files/sample-multilingual-text.pdf" />
+    <File Path="src/http/files/sample-recipes.pdf" />
+    <File Path="src/http/files/sample-text-and-images.pdf" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DocumentAPI.Tests/DocumentAPI.Tests.csproj" />
   </Folder>
