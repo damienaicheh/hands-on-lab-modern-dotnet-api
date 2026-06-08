@@ -1,6 +1,7 @@
 namespace DocumentAPI.Tests;
 
 using System.Net;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Hosting;
 
@@ -37,6 +38,31 @@ public sealed class SwaggerExposureTests
         var response = await client.GetAsync("/swagger/v1/swagger.json");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Verifies that versioned document endpoints declare api-version as a required query parameter.
+    /// </summary>
+    [Fact]
+    public async Task SwaggerJsonDocumentsEndpointsRequireApiVersionQueryParameter()
+    {
+        using var _ = ApplyAuthenticationEnvironmentVariables();
+        using var factory = new DocumentApiFactory(_sqlServer.ConnectionString, Environments.Development);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+        });
+
+        var response = await client.GetAsync("/swagger/v1/swagger.json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(payload);
+
+        AssertApiVersionQueryParameter(document, "/documents/search", "get");
+        AssertApiVersionQueryParameter(document, "/documents", "post");
+        AssertApiVersionQueryParameter(document, "/documents/{id}/content", "get");
     }
 
     /// <summary>
@@ -85,5 +111,21 @@ public sealed class SwaggerExposureTests
         {
             disposeAction();
         }
+    }
+
+    private static void AssertApiVersionQueryParameter(JsonDocument document, string path, string verb)
+    {
+        var parameters = document.RootElement
+            .GetProperty("paths")
+            .GetProperty(path)
+            .GetProperty(verb)
+            .GetProperty("parameters");
+
+        var apiVersionParameter = parameters.EnumerateArray()
+            .Single(parameter =>
+                parameter.GetProperty("name").GetString() == "api-version"
+                && parameter.GetProperty("in").GetString() == "query");
+
+        Assert.True(apiVersionParameter.GetProperty("required").GetBoolean());
     }
 }

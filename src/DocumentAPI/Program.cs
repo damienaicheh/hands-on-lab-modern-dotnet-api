@@ -1,17 +1,21 @@
 using System.Reflection;
 using System.Text;
 using Asp.Versioning;
+using Asp.Versioning.ApiExplorer;
 using DocumentAPI.Endpoints;
+using DocumentAPI.OpenApi;
 using DocumentAPI.Observability;
 using DocumentAPI.Options;
 using DocumentAPI.Services;
 using DocumentAPI.Extensions;
+using Microsoft.Extensions.Options;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,13 +87,20 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 	options.EnableAdaptiveSampling = applicationInsightsOptions.EnableAdaptiveSampling;
 });
 
-builder.Services.AddApiVersioning(options =>
-{
-	options.AssumeDefaultVersionWhenUnspecified = false;
-	options.ReportApiVersions = true;
-});
+builder.Services
+	.AddApiVersioning(options =>
+	{
+		options.AssumeDefaultVersionWhenUnspecified = false;
+		options.ReportApiVersions = true;
+		options.ApiVersionReader = new QueryStringApiVersionReader("api-version");
+	})
+	.AddApiExplorer(options =>
+	{
+		options.GroupNameFormat = "'v'V";
+	});
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 builder.Services.AddSwaggerGen(options =>
 {
 	var bearerSecurityScheme = new OpenApiSecurityScheme
@@ -101,13 +112,6 @@ builder.Services.AddSwaggerGen(options =>
 		In = ParameterLocation.Header,
 		Description = "Provide a valid JWT bearer token.",
 	};
-
-	options.SwaggerDoc("v1", new OpenApiInfo
-	{
-		Title = "DocumentAPI",
-		Version = "v1",
-		Description = "Document management API built with .NET 10 Minimal APIs.",
-	});
 
 	options.AddSecurityDefinition("Bearer", bearerSecurityScheme);
 
@@ -124,6 +128,8 @@ builder.Services.AddSwaggerGen(options =>
 	{
 		options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
 	}
+
+	options.OperationFilter<SwaggerDefaultValues>();
 });
 
 builder.Services.AddDocumentServices(documentApiOptions);
@@ -139,10 +145,18 @@ if (!app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
+	var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+
 	app.UseSwagger();
 	app.UseSwaggerUI(options =>
 	{
-		options.SwaggerEndpoint("/swagger/v1/swagger.json", "DocumentAPI v1");
+		foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
+		{
+			options.SwaggerEndpoint(
+				$"/swagger/{description.GroupName}/swagger.json",
+				$"DocumentAPI {description.GroupName.ToUpperInvariant()}");
+		}
+
 		options.RoutePrefix = "swagger";
 	});
 }

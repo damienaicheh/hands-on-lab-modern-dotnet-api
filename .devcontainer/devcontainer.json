@@ -10,6 +10,9 @@
     "ghcr.io/devcontainers/features/terraform:latest": {},
     "ghcr.io/devcontainers/features/docker-in-docker:3": {}
   },
+  "forwardPorts": [
+    5222
+  ],
   "postCreateCommand": "npm install -g @typespec/compiler && (dotnet tool update --global Microsoft.OpenApi.Kiota || dotnet tool install --global Microsoft.OpenApi.Kiota)",
   "customizations": {
     "vscode": {
