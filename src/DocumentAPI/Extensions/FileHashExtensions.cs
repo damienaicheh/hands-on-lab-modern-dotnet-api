@@ -10,7 +10,7 @@ internal static class FileHashExtensions
     /// <summary>
     /// Computes the MD5 content hash used to detect duplicate documents.
     /// </summary>
-    internal static string ComputeContentHash(this byte[] content)
+    internal static string Md5ToHexString(this byte[] content)
     {
         // MD5 is used to align the duplicate-detection hash with the Content-MD5 integrity contract, not for security.
 #pragma warning disable CA5351

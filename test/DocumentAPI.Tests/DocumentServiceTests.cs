@@ -40,7 +40,7 @@ public sealed class DocumentServiceTests
                 Description = "Minimal API lab",
                 Source = "unit-test",
                 Tags = ["lab", "notes"],
-                ContentHash = Encoding.UTF8.GetBytes("hello world").ComputeContentHash(),
+                ContentHash = Encoding.UTF8.GetBytes("hello world").Md5ToHexString(),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -115,7 +115,7 @@ public sealed class DocumentServiceTests
                 FileName = "existing.txt",
                 ContentType = "text/plain",
                 Size = duplicateBytes.Length,
-                ContentHash = duplicateBytes.ComputeContentHash(),
+                ContentHash = duplicateBytes.Md5ToHexString(),
                 CreatedUtc = DateTimeOffset.UtcNow,
             });
         await dbContext.SaveChangesAsync();
@@ -169,7 +169,7 @@ public sealed class DocumentServiceTests
         var service = CreateService(dbContext, storage, activityMonitor);
 
         var content = Encoding.UTF8.GetBytes("stored-content");
-        var contentHash = content.ComputeContentHash();
+        var contentHash = content.Md5ToHexString();
         storage.Seed(contentHash, content);
 
         dbContext.Documents.Add(
