@@ -1,11 +1,11 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/DocumentAPI/DocumentAPI.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
   </Folder>
-  <Folder Name="/src/http/">
+  <Folder Name="/Solution Items/http/">
     <File Path="src/http/requests.http" />
   </Folder>
-  <Folder Name="/src/http/files/">
+  <Folder Name="/Solution Items/http/files/">
     <File Path="src/http/files/sample-1.pdf" />
     <File Path="src/http/files/sample-2.pdf" />
     <File Path="src/http/files/sample-3.pdf" />
@@ -17,6 +17,9 @@
     <File Path="src/http/files/sample-multilingual-text.pdf" />
     <File Path="src/http/files/sample-recipes.pdf" />
     <File Path="src/http/files/sample-text-and-images.pdf" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/DocumentAPI/DocumentAPI.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DocumentAPI.Tests/DocumentAPI.Tests.csproj" />
