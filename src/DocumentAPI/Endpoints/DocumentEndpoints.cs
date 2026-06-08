@@ -27,12 +27,13 @@ public static class DocumentEndpoints
     /// <returns>The original endpoint route builder.</returns>
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/documents")
+        var documentGroup = endpoints.NewVersionedApi("Documents");
+        var v1Group = documentGroup.MapGroup("/documents")
             .WithTags("Documents")
             .RequireAuthorization()
             .HasApiVersion(new ApiVersion(1));
 
-        group.MapGet("/search", SearchAsync)
+        v1Group.MapGet("/search", SearchAsync)
             .WithName("Documents_search")
             .Produces<IReadOnlyList<DocumentDto>>(StatusCodes.Status200OK)
             .Produces<ApiError>(StatusCodes.Status400BadRequest)
@@ -40,7 +41,7 @@ public static class DocumentEndpoints
             .Produces<ApiError>(StatusCodes.Status503ServiceUnavailable)
             .Produces<UnauthorizedError>(StatusCodes.Status401Unauthorized);
 
-        group.MapPost("/", UploadAsync)
+        v1Group.MapPost("/", UploadAsync)
             .WithName("Documents_upload")
             .Accepts<IFormFile>("multipart/form-data")
             .Produces<DocumentDto>(StatusCodes.Status201Created)
@@ -52,7 +53,7 @@ public static class DocumentEndpoints
             .Produces<ApiError>(StatusCodes.Status413PayloadTooLarge)
             .Produces<UnauthorizedError>(StatusCodes.Status401Unauthorized);
 
-        group.MapGet("/{id}/content", DownloadAsync)
+        v1Group.MapGet("/{id}/content", DownloadAsync)
             .WithName("Documents_download")
             .Produces(StatusCodes.Status200OK)
             .Produces<ApiError>(StatusCodes.Status400BadRequest)
