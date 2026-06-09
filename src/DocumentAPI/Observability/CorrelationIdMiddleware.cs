@@ -21,6 +21,10 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next, ILogger<Correl
     /// <param name="context">The current HTTP context.</param>
     public async Task InvokeAsync(HttpContext context)
     {
+        // <lab id="12">
+        //|        // TODO Lab 12: Resolve or create a correlation id, add it to the response, and include it in the logging scope.
+        //|        await _next(context);
+        //|        return;
         var correlationId = ResolveCorrelationId(context.Request.Headers);
         context.TraceIdentifier = correlationId;
         context.Response.Headers[HeaderName] = correlationId;
@@ -32,6 +36,7 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next, ILogger<Correl
         });
 
         await _next(context);
+        // </lab>
     }
 
     /// <summary>
@@ -39,11 +44,14 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next, ILogger<Correl
     /// </summary>
     private static string ResolveCorrelationId(IHeaderDictionary headers)
     {
+        // <lab id="12">
+        //|    throw new NotImplementedException("TODO Lab 12: Resolve the correlation id from the request header or generate one.");
         if (headers.TryGetValue(HeaderName, out StringValues values) && !StringValues.IsNullOrEmpty(values))
         {
             return values.ToString();
         }
 
         return Guid.NewGuid().ToString("N");
+        // </lab>
     }
 }

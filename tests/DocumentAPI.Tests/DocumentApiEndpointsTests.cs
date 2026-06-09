@@ -160,6 +160,8 @@ public sealed class DocumentApiEndpointsTests
     [Fact]
     public async Task UploadSearchAndDownloadRoundTripDocument()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test the upload, search, and download HTTP round trip.");
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
@@ -203,6 +205,7 @@ public sealed class DocumentApiEndpointsTests
         var downloadedBody = await downloadResponse.Content.ReadAsStringAsync();
 
         Assert.Equal("hello world", downloadedBody);
+        // </lab>
     }
 
     /// <summary>
@@ -211,6 +214,8 @@ public sealed class DocumentApiEndpointsTests
     [Fact]
     public async Task UploadRequiresMetadataPart()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test that upload rejects missing metadata.");
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
@@ -229,6 +234,7 @@ public sealed class DocumentApiEndpointsTests
         Assert.NotNull(error);
         Assert.Equal(StatusCodes.Status400BadRequest, error!.Status);
         Assert.Equal("The metadata part is required.", error.Detail);
+        // </lab>
     }
 
     /// <summary>
@@ -237,6 +243,8 @@ public sealed class DocumentApiEndpointsTests
     [Fact]
     public async Task UploadingSameContentTwiceReturnsConflict()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test that duplicate content returns conflict.");
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
@@ -263,6 +271,7 @@ public sealed class DocumentApiEndpointsTests
 
         Assert.NotNull(error);
         Assert.Equal(StatusCodes.Status409Conflict, error!.Status);
+        // </lab>
     }
 
     /// <summary>
@@ -271,6 +280,8 @@ public sealed class DocumentApiEndpointsTests
     [Fact]
     public async Task DownloadReturnsNotFoundForUnknownDocumentId()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test that unknown downloads return not found.");
         using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
@@ -284,6 +295,7 @@ public sealed class DocumentApiEndpointsTests
         Assert.NotNull(error);
         Assert.Equal(StatusCodes.Status404NotFound, error!.Status);
         Assert.Equal("The requested document was not found.", error.Detail);
+        // </lab>
     }
 
     /// <summary>

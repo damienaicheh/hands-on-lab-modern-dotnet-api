@@ -35,6 +35,9 @@ public static class HealthEndpoints
         IHealthStatusService healthStatusService,
         CancellationToken cancellationToken)
     {
+        // <lab id="8">
+        //|        // TODO Lab 8: Map Healthy, Degraded, and Unhealthy states to the expected HTTP responses.
+        //|        throw new NotImplementedException("TODO Lab 8: Map Healthy, Degraded, and Unhealthy states to the expected HTTP responses.");
         var status = await healthStatusService.GetStatusAsync(cancellationToken);
 
         if (!status.IsAvailable)
@@ -59,5 +62,6 @@ public static class HealthEndpoints
                 },
                 StringComparer.Ordinal),
         });
+            // </lab>
     }
 }

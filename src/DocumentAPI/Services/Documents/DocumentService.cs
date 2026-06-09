@@ -42,10 +42,14 @@ internal sealed class DocumentService(
     /// <inheritdoc />
     public async Task<IReadOnlyList<DocumentDto>> SearchAsync(DocumentSearchCriteria criteria, CancellationToken cancellationToken)
     {
+        // <lab id="6">
+        //|        throw new NotImplementedException("TODO Lab 6: Implement document search.");
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
+            // <lab id="7">
+            //|            throw new NotImplementedException("TODO Lab 7: Add caching around document search.");
             var cacheKey = CreateCacheKey(_cacheVersion.Current, criteria);
 
             var cacheHit = _cache.TryGetValue(cacheKey, out IReadOnlyList<DocumentDto>? cachedDocuments) && cachedDocuments is not null;
@@ -72,6 +76,7 @@ internal sealed class DocumentService(
             _activityMonitor.TrackSearch(criteria, documents.Count, cacheHit);
 
             return documents;
+            // </lab>
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -86,11 +91,14 @@ internal sealed class DocumentService(
                 !string.IsNullOrWhiteSpace(criteria.ContentType));
             throw;
         }
+        // </lab>
     }
 
     /// <inheritdoc />
     public async Task<DocumentDto> UploadAsync(DocumentUploadCommand command, CancellationToken cancellationToken)
     {
+        // <lab id="4">
+        //|        throw new NotImplementedException("TODO Lab 4: Implement the document upload happy path.");
         if (!command.Content.CanSeek)
         {
             throw new ArgumentException("The upload content stream must support seeking.", nameof(command));
@@ -101,6 +109,8 @@ internal sealed class DocumentService(
         var hash = Convert.ToHexString(md5);
         command.Content.Position = 0;
 
+        // <lab id="5">
+        //|        throw new NotImplementedException("TODO Lab 5: Add duplicate detection, retries, rollback, and clean error handling.");
         var existingDocument = await _resiliencePipeline.ExecuteAsync(
             async token => await _dbContext.Documents
                 .AsNoTracking()
@@ -145,7 +155,10 @@ internal sealed class DocumentService(
             await _resiliencePipeline.ExecuteAsync(
                 async token => await _dbContext.SaveChangesAsync(token),
                 cancellationToken);
+            // <lab id="7">
+            //|            // TODO Lab 7: Invalidate cached search results after a successful upload.
             _cacheVersion.Increment();
+            // </lab>
 
             var documentDto = ToDocumentDto(document);
             stopwatch.Stop();
@@ -234,11 +247,15 @@ internal sealed class DocumentService(
                 stopwatch.Elapsed.TotalMilliseconds);
             throw;
         }
+        // </lab>
+        // </lab>
     }
 
     /// <inheritdoc />
     public async Task<DocumentContentResult?> DownloadAsync(string id, CancellationToken cancellationToken)
     {
+        // <lab id="6">
+        //|        throw new NotImplementedException("TODO Lab 6: Implement document download.");
         var stopwatch = Stopwatch.StartNew();
 
         try
@@ -301,6 +318,7 @@ internal sealed class DocumentService(
                 stopwatch.Elapsed.TotalMilliseconds);
             throw;
         }
+        // </lab>
     }
 
     /// <summary>
@@ -308,6 +326,8 @@ internal sealed class DocumentService(
     /// </summary>
     private async Task<IReadOnlyList<DocumentDto>> QueryDocumentsAsync(DocumentSearchCriteria criteria, CancellationToken cancellationToken)
     {
+        // <lab id="6">
+        //|    throw new NotImplementedException("TODO Lab 6: Query documents by optional search criteria.");
         var query = _dbContext.Documents.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(criteria.Title))
@@ -338,6 +358,7 @@ internal sealed class DocumentService(
         }
 
         return filtered.Select(ToDocumentDto).ToArray();
+        // </lab>
     }
 
     /// <summary>
@@ -345,6 +366,8 @@ internal sealed class DocumentService(
     /// </summary>
     private static DocumentDto ToDocumentDto(Document document)
     {
+        // <lab id="4">
+        //|    throw new NotImplementedException("TODO Lab 4: Map the entity to the public DTO.");
         return new DocumentDto
         {
             Id = document.Id,
@@ -359,6 +382,7 @@ internal sealed class DocumentService(
                 Tags = document.Tags.Count > 0 ? document.Tags : null,
             },
         };
+        // </lab>
     }
 
     /// <summary>

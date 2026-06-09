@@ -16,6 +16,9 @@ internal sealed class DocumentHealthStatusService(IDocumentStorageService storag
     /// <inheritdoc />
     public async Task<HealthStateResult> GetStatusAsync(CancellationToken cancellationToken)
     {
+        // <lab id="8">
+        //|        // TODO Lab 8: Check SQL and Blob Storage connectivity and return the evaluated state.
+        //|        throw new NotImplementedException("TODO Lab 8: Check SQL and Blob Storage connectivity and return the evaluated state.");
         var storageHealthy = await _storage.CanConnectAsync(cancellationToken);
         var databaseHealthy = await _dbContext.Database.CanConnectAsync(cancellationToken);
         var checks = new Dictionary<string, HealthDependencyState>(StringComparer.Ordinal)
@@ -39,5 +42,6 @@ internal sealed class DocumentHealthStatusService(IDocumentStorageService storag
         }
 
         return new HealthStateResult(HealthStatus.Unhealthy, false, checks);
+        // </lab>
     }
 }

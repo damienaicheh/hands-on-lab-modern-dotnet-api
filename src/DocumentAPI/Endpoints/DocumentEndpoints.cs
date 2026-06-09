@@ -27,12 +27,21 @@ public static class DocumentEndpoints
     /// <returns>The original endpoint route builder.</returns>
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        // <lab id="10">
+        //|        var v1Group = endpoints.MapGroup("/documents")
+        //|            .WithTags("Documents");
         var documentGroup = endpoints.NewVersionedApi("Documents");
         var v1Group = documentGroup.MapGroup("/documents")
             .WithTags("Documents")
+            // <lab id="11">
+            //|            // TODO Lab 11: Require authorization on the documents endpoint group.
             .RequireAuthorization()
+            // </lab>
             .HasApiVersion(new ApiVersion(1));
+        // </lab>
 
+        // <lab id="1">
+        //|       // TODO Lab 1: Define the search, upload, and download endpoints.
         v1Group.MapGet("/search", SearchAsync)
             .WithName("Documents_search")
             .Produces<IReadOnlyList<DocumentDto>>(StatusCodes.Status200OK)
@@ -52,7 +61,7 @@ public static class DocumentEndpoints
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
-
+        
         v1Group.MapGet("/{id}/content", DownloadAsync)
             .WithName("Documents_download")
             .Produces(StatusCodes.Status200OK)
@@ -61,6 +70,7 @@ public static class DocumentEndpoints
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
+        // </lab>
 
         return endpoints;
     }
@@ -77,6 +87,8 @@ public static class DocumentEndpoints
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        // <lab id="6">
+        //|        throw new NotImplementedException("TODO Lab 6: Implement the search endpoint handler.");
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
 
         try
@@ -108,6 +120,7 @@ public static class DocumentEndpoints
                 detail: "An unexpected error occurred while processing the document request.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
+            // </lab>
     }
 
     /// <summary>
@@ -120,6 +133,8 @@ public static class DocumentEndpoints
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        // <lab id="4">
+        //|        throw new NotImplementedException("TODO Lab 4: Implement the upload endpoint handler.");
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
 
         if (!request.HasFormContentType)
@@ -147,6 +162,12 @@ public static class DocumentEndpoints
 
         await using var fileStream = file!.OpenReadStream();
 
+        // <lab id="5">
+        //|        var uploadedDocument = await documentService.UploadAsync(
+        //|            new DocumentUploadCommand(file.FileName, file.ContentType, fileStream, file.Length, metadataResult.Metadata!),
+        //|            cancellationToken);
+        //|
+        //|        return Results.Json(uploadedDocument, statusCode: StatusCodes.Status201Created);
         try
         {
             var document = await documentService.UploadAsync(
@@ -201,6 +222,8 @@ public static class DocumentEndpoints
                 detail: "An unexpected error occurred while processing the document request.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
+            // </lab>
+            // </lab>
     }
 
     /// <summary>
@@ -212,6 +235,8 @@ public static class DocumentEndpoints
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        // <lab id="6">
+        //|        throw new NotImplementedException("TODO Lab 6: Implement the download endpoint handler.");
         var logger = loggerFactory.CreateLogger("DocumentEndpoints");
 
         try
@@ -259,6 +284,7 @@ public static class DocumentEndpoints
                 detail: "An unexpected error occurred while processing the document request.",
                 statusCode: StatusCodes.Status500InternalServerError);
         }
+            // </lab>
     }
 
     /// <summary>

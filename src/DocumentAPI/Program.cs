@@ -24,7 +24,12 @@ const string ProblemJsonContentType = "application/problem+json";
 var documentApiOptions = builder.Configuration.GetSection(DocumentApiOptions.SectionName).Get<DocumentApiOptions>() ?? new DocumentApiOptions();
 
 builder.Services.AddDocumentApiOptions(builder.Configuration);
+// <lab id="7">
+//|// TODO Lab 7: Register the in-memory cache service used by document search.
 builder.Services.AddMemoryCache();
+// </lab>
+// <lab id="12">
+//|// TODO Lab 12: Register HTTP logging and include the correlation id header.
 builder.Services.AddHttpLogging(options =>
 {
 	options.LoggingFields = HttpLoggingFields.RequestMethod
@@ -34,8 +39,11 @@ builder.Services.AddHttpLogging(options =>
 	options.RequestHeaders.Add(CorrelationIdMiddleware.HeaderName);
 	options.ResponseHeaders.Add(CorrelationIdMiddleware.HeaderName);
 });
+// </lab>
 builder.Services.AddAuthorization();
 builder.Services.AddProblemDetails();
+// <lab id="11">
+//|// TODO Lab 11: Register JWT bearer authentication and configure token validation.
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
@@ -68,7 +76,11 @@ builder.Services
 			},
 		};
 	});
+// </lab>
 
+// <lab id="12">
+//|builder.Services.AddHttpContextAccessor();
+//|builder.Services.AddApplicationInsightsTelemetry();
 var applicationInsightsOptions = documentApiOptions.ApplicationInsights;
 var applicationInsightsConnectionString = applicationInsightsOptions.Enabled
 	? ResolveApplicationInsightsConnectionString(builder.Configuration, applicationInsightsOptions)
@@ -86,7 +98,10 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 	options.ConnectionString = applicationInsightsConnectionString;
 	options.EnableAdaptiveSampling = applicationInsightsOptions.EnableAdaptiveSampling;
 });
+// </lab>
 
+// <lab id="10">
+//|// TODO Lab 10: Register API versioning and expose version metadata for Swagger.
 builder.Services
 	.AddApiVersioning(options =>
 	{
@@ -98,11 +113,17 @@ builder.Services
 	{
 		options.GroupNameFormat = "'v'V";
 	});
+// </lab>
 
+// <lab id="1">
+//|// TODO Lab 1: Register the minimal Swagger/OpenAPI services.
 builder.Services.AddEndpointsApiExplorer();
+// <lab id="10">
 builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
+// </lab>
 builder.Services.AddSwaggerGen(options =>
 {
+// <lab id="11">
 	var bearerSecurityScheme = new OpenApiSecurityScheme
 	{
 		Name = "Authorization",
@@ -119,6 +140,7 @@ builder.Services.AddSwaggerGen(options =>
 	{
 		[new OpenApiSecuritySchemeReference("Bearer", hostDocument: document, externalResource: null)] = [],
 	});
+// </lab>
 
 	// Include XML comments if available for better Swagger documentation.
 	var xmlFileName = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -129,8 +151,11 @@ builder.Services.AddSwaggerGen(options =>
 		options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
 	}
 
+// <lab id="10">
 	options.OperationFilter<SwaggerDefaultValues>();
+// </lab>
 });
+// </lab>
 
 builder.Services.AddDocumentServices(documentApiOptions);
 
@@ -145,9 +170,15 @@ if (!app.Environment.IsDevelopment())
 
 if (app.Environment.IsDevelopment())
 {
+// <lab id="10">
 	var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
+// </lab>
 
+	// <lab id="1">
+	//|// TODO Lab 1: Expose Swagger and Swagger UI in the Development environment.
 	app.UseSwagger();
+	// <lab id="10">
+	//|app.UseSwaggerUI();
 	app.UseSwaggerUI(options =>
 	{
 		foreach (var description in apiVersionDescriptionProvider.ApiVersionDescriptions)
@@ -159,12 +190,20 @@ if (app.Environment.IsDevelopment())
 
 		options.RoutePrefix = "swagger";
 	});
+	// </lab>
+	// </lab>
 }
 
+// <lab id="12">
+//|// TODO Lab 12: Enable HTTP logging and correlation id middleware.
 app.UseHttpLogging();
 app.UseMiddleware<CorrelationIdMiddleware>();
+// </lab>
+// <lab id="11">
+//|// TODO Lab 11: Enable authentication before authorization.
 app.UseAuthentication();
 app.UseAuthorization();
+// </lab>
 
 app.MapHealthEndpoints();
 app.MapDocumentEndpoints();
