@@ -144,6 +144,8 @@ Welcome to the first lab of the Document API workshop. In this step, you will ex
 
 The goal is intentionally small: understand where the API is wired, then add just enough metadata so the application becomes easy to discover and test.
 
+You are not building business behavior yet. You are preparing the API surface so every next lab can be tested from a browser and described by an OpenAPI contract.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -196,6 +198,8 @@ builder.Services.AddSwaggerGen(options =>
 ## Enable Swagger UI
 
 Still in `Program.cs`, find the Lab 1 TODO inside the development block and add:
+
+This enables two things: the raw Swagger JSON document and the interactive Swagger UI page. Keeping it in the development block avoids exposing the UI by accident in another environment.
 
 ```csharp
 app.UseSwagger();
@@ -267,6 +271,8 @@ In this lab, you will add SQL Server persistence for document metadata. The API 
 
 The starter already provides the `Document` entity, database options, EF Core mapping, migration files, and Azure SQL authentication helper. Your job is to connect those pieces through `DocumentDbContext` and dependency injection.
 
+At the end of this lab, the API will know how to talk to the database, even if no endpoint is using it fully yet. That lets the next labs focus on workflows instead of infrastructure setup.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -311,6 +317,8 @@ This keeps table mapping, indexes, and column details in `DocumentConfiguration.
 ## Register SQL Server
 
 Open `DependencyInjection.cs` and register the context inside `AddDocumentServices`:
+
+Registering the context in dependency injection lets services ask for `DocumentDbContext` through their constructor. ASP.NET Core then creates it with the right lifetime for each request.
 
 ```csharp
 services.AddDbContext<DocumentDbContext>(builder => ConfigureDatabase(builder, options.Database));
@@ -403,6 +411,8 @@ In the previous lab, you wired SQL Server for metadata. Now you will add Azure B
 
 The API keeps metadata and content separated: SQL Server stores searchable properties, while Blob Storage stores the file bytes.
 
+This separation is common in document systems: the database is great for filters and relationships, while storage accounts are built for durable file content.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -478,6 +488,8 @@ public async Task DeleteAsync(string contentHash, CancellationToken cancellation
 
 Then implement `OpenReadAsync`:
 
+Returning `null` for a missing blob keeps the service contract simple. The document service can then decide whether that becomes a `404` or another recovery path.
+
 ```csharp
 public async Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)
 {
@@ -530,6 +542,8 @@ You now have metadata persistence and blob storage. In this lab, you will connec
 
 This lab focuses on the happy path. Robust validation and dependency failure handling come next.
 
+The goal is to see the full route from HTTP request to database row and blob content. Once that path exists, it becomes much easier to harden it.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -577,6 +591,8 @@ if (metadataResult.Error is not null)
 ```
 
 Then call the service:
+
+The endpoint passes a command object to the service instead of many separate parameters. That makes the upload intent explicit and keeps the method signature readable.
 
 ```csharp
 var validationFailure = validator.Validate(file, metadataResult.Metadata);
@@ -689,6 +705,8 @@ The upload happy path works, but real APIs need to be defensive. In this lab, yo
 
 This is the lab where the upload workflow becomes production-shaped.
 
+You will keep the successful path from the previous lab, then add the defensive behavior around it: reject bad input early, avoid duplicate content, and clean up when one dependency succeeds but another fails.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -774,6 +792,8 @@ if (!DocumentContentTypes.IsSupported(file.ContentType))
 ```
 
 Return `null` when the request is valid.
+
+This keeps the calling code straightforward: a validation failure contains a `ProblemDetails` response, and `null` means the request can continue.
 
 ## Detect Duplicates In The Service
 
@@ -862,6 +882,8 @@ catch (DbUpdateException)
 
 Add storage and unexpected error mappings using the same pattern.
 
+The important idea is consistency. Clients should not need to know whether the failure came from SQL Server, Blob Storage, or the document workflow internals.
+
 ## Build The Project
 
 ```bash
@@ -886,6 +908,8 @@ dotnet build src/DocumentAPI/DocumentAPI.csproj
 The API can now upload documents reliably. In this lab, you will let clients retrieve stored content and search document metadata.
 
 Search and download complete the core document workflow.
+
+After this lab, a document can go through the complete lifecycle from upload to retrieval. The API becomes useful enough to validate with real end-to-end scenarios.
 
 ## What You Will Learn
 
@@ -996,6 +1020,8 @@ return Results.Ok(documents);
 
 Then implement download:
 
+`Results.File` streams the content back to the caller and keeps the original file name and content type. Range processing is enabled so clients can resume or partially read supported downloads.
+
 ```csharp
 var document = await documentService.DownloadAsync(id, cancellationToken);
 
@@ -1031,6 +1057,8 @@ Search is often called repeatedly with the same filters. In this lab, you will a
 
 The important part is not just caching; it is caching safely and invalidating results when new documents are uploaded.
 
+The API response should not change when caching is added. You are improving performance behind the same contract, which is a useful pattern for production APIs.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -1053,6 +1081,8 @@ The cache options and shared cache version service are already provided.
 ## Register Memory Cache
 
 Open `Program.cs` and register the memory cache:
+
+This adds the built-in in-memory cache service to the application container. It is enough for a single API instance and keeps the lab focused on caching behavior.
 
 ```csharp
 builder.Services.AddMemoryCache();
@@ -1161,6 +1191,8 @@ The API now depends on SQL Server and Blob Storage. In this lab, you will expose
 
 Health endpoints are used by humans, deployment systems, and monitoring tools. They should be simple, stable, and safe to call without authentication.
 
+The endpoint is not meant to expose private diagnostics. It gives just enough information to know whether the API should receive traffic.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -1240,6 +1272,8 @@ if (status.Status != HealthStatus.Degraded)
 
 For degraded mode, include dependency details:
 
+`Degraded` is useful when the service is still reachable but not fully healthy. It gives operators a clear signal without pretending everything is fine.
+
 ```csharp
 return Results.Ok(new HealthyOrDegradedStatus
 {
@@ -1282,6 +1316,8 @@ dotnet build src/DocumentAPI/DocumentAPI.csproj
 You now have the main API behaviors in place. In this lab, you will add automated tests so the upload, search, download, duplicate detection, and edge cases can be validated repeatedly.
 
 The test infrastructure is already prepared. Your focus is the test intent, not the boilerplate.
+
+Each test should explain one behavior in code: what is arranged, what action happens, and what result proves the behavior is correct.
 
 ## What You Will Learn
 
@@ -1342,6 +1378,8 @@ Assert.Single(activityMonitor.UploadSucceededDocuments);
 
 Add a document with the same hash, then upload the same bytes again:
 
+This test protects the rule introduced in the robustness lab. If someone changes upload later, the test will catch accidental duplicate storage.
+
 ```csharp
 var duplicateBytes = Encoding.UTF8.GetBytes("same-content");
 dbContext.Documents.Add(new Document
@@ -1365,6 +1403,8 @@ Assert.Equal(0, storage.SaveCallCount);
 ## Test Download Behavior
 
 For a missing document:
+
+Download has two important branches: the document exists or it does not. Testing both keeps the public `404` behavior reliable.
 
 ```csharp
 var result = await service.DownloadAsync("missing", CancellationToken.None);
@@ -1448,6 +1488,8 @@ Your API now has real behavior. In this lab, you will introduce explicit API ver
 
 The version will be read from the query string using `api-version=1.0`.
 
+The goal is not to create a second version yet. The goal is to make version selection explicit before the API grows further.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -1524,6 +1566,8 @@ All document endpoints mapped on `v1Group` now require a supported API version.
 
 Still in `Program.cs`, resolve the version provider in the development block:
 
+Swagger should show the same versioned contract that clients use at runtime. When future versions appear, each one can have its own generated document.
+
 ```csharp
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
 ```
@@ -1573,6 +1617,8 @@ Then try the same endpoint without `api-version`.
 The document API now exposes useful operations. In this lab, you will protect those operations with JWT bearer authentication while keeping `/health` anonymous.
 
 Authentication is configured from the options already provided in the starter.
+
+You will protect the document workflow, not the whole application. Operational endpoints such as `/health` remain open so monitoring can keep working.
 
 ## What You Will Learn
 
@@ -1630,6 +1676,8 @@ app.UseAuthorization();
 
 Inside `AddJwtBearer`, configure `OnChallenge`:
 
+The default challenge response can vary depending on middleware behavior. Returning `ProblemDetails` gives clients a predictable JSON shape.
+
 ```csharp
 options.Events = new JwtBearerEvents
 {
@@ -1666,6 +1714,8 @@ Do not add authorization to `/health`.
 ## Add Bearer Support To Swagger
 
 Inside `AddSwaggerGen`, add a bearer security definition:
+
+This does not authenticate anyone by itself. It only teaches Swagger UI how to send an `Authorization: Bearer ...` header when you test protected endpoints.
 
 ```csharp
 var bearerSecurityScheme = new OpenApiSecurityScheme
@@ -1710,6 +1760,8 @@ It should return `401 Unauthorized`.
 In the final lab, you will make the API easier to troubleshoot. You will add request correlation, HTTP logging, Application Insights telemetry, and business-level document activity monitoring.
 
 The goal is to understand what happened, where it happened, and which document operation was involved.
+
+You are adding signals that help during debugging and production support. Logs explain the request path, correlation connects events together, and custom telemetry explains the document operation.
 
 ## What You Will Learn
 
@@ -1784,6 +1836,8 @@ builder.Services.AddHttpLogging(options =>
 ```
 
 Register Application Insights:
+
+Application Insights receives the platform telemetry, while the telemetry initializer enriches it with request context such as the correlation id.
 
 ```csharp
 builder.Services.AddHttpContextAccessor();
@@ -1869,4 +1923,6 @@ X-Correlation-Id: workshop-correlation-id
 > If Application Insights is configured, run a document workflow and inspect the emitted custom events and metrics.
 
 </div>
+
+---
 

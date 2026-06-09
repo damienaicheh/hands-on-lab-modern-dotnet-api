@@ -4,6 +4,8 @@ Your API now has real behavior. In this lab, you will introduce explicit API ver
 
 The version will be read from the query string using `api-version=1.0`.
 
+The goal is not to create a second version yet. The goal is to make version selection explicit before the API grows further.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -79,6 +81,8 @@ All document endpoints mapped on `v1Group` now require a supported API version.
 ## Expose Swagger Per Version
 
 Still in `Program.cs`, resolve the version provider in the development block:
+
+Swagger should show the same versioned contract that clients use at runtime. When future versions appear, each one can have its own generated document.
 
 ```csharp
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();

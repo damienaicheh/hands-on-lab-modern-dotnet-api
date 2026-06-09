@@ -4,6 +4,8 @@ Search is often called repeatedly with the same filters. In this lab, you will a
 
 The important part is not just caching; it is caching safely and invalidating results when new documents are uploaded.
 
+The API response should not change when caching is added. You are improving performance behind the same contract, which is a useful pattern for production APIs.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -26,6 +28,8 @@ The cache options and shared cache version service are already provided.
 ## Register Memory Cache
 
 Open `Program.cs` and register the memory cache:
+
+This adds the built-in in-memory cache service to the application container. It is enough for a single API instance and keeps the lab focused on caching behavior.
 
 ```csharp
 builder.Services.AddMemoryCache();

@@ -4,6 +4,8 @@ You now have metadata persistence and blob storage. In this lab, you will connec
 
 This lab focuses on the happy path. Robust validation and dependency failure handling come next.
 
+The goal is to see the full route from HTTP request to database row and blob content. Once that path exists, it becomes much easier to harden it.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -51,6 +53,8 @@ if (metadataResult.Error is not null)
 ```
 
 Then call the service:
+
+The endpoint passes a command object to the service instead of many separate parameters. That makes the upload intent explicit and keeps the method signature readable.
 
 ```csharp
 var validationFailure = validator.Validate(file, metadataResult.Metadata);

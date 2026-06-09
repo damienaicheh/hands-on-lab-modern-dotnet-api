@@ -4,6 +4,8 @@ In this lab, you will add SQL Server persistence for document metadata. The API 
 
 The starter already provides the `Document` entity, database options, EF Core mapping, migration files, and Azure SQL authentication helper. Your job is to connect those pieces through `DocumentDbContext` and dependency injection.
 
+At the end of this lab, the API will know how to talk to the database, even if no endpoint is using it fully yet. That lets the next labs focus on workflows instead of infrastructure setup.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -48,6 +50,8 @@ This keeps table mapping, indexes, and column details in `DocumentConfiguration.
 ## Register SQL Server
 
 Open `DependencyInjection.cs` and register the context inside `AddDocumentServices`:
+
+Registering the context in dependency injection lets services ask for `DocumentDbContext` through their constructor. ASP.NET Core then creates it with the right lifetime for each request.
 
 ```csharp
 services.AddDbContext<DocumentDbContext>(builder => ConfigureDatabase(builder, options.Database));

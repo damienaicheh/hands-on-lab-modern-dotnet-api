@@ -4,6 +4,8 @@ The API now depends on SQL Server and Blob Storage. In this lab, you will expose
 
 Health endpoints are used by humans, deployment systems, and monitoring tools. They should be simple, stable, and safe to call without authentication.
 
+The endpoint is not meant to expose private diagnostics. It gives just enough information to know whether the API should receive traffic.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -82,6 +84,8 @@ if (status.Status != HealthStatus.Degraded)
 ```
 
 For degraded mode, include dependency details:
+
+`Degraded` is useful when the service is still reachable but not fully healthy. It gives operators a clear signal without pretending everything is fine.
 
 ```csharp
 return Results.Ok(new HealthyOrDegradedStatus

@@ -4,6 +4,8 @@ Welcome to the first lab of the Document API workshop. In this step, you will ex
 
 The goal is intentionally small: understand where the API is wired, then add just enough metadata so the application becomes easy to discover and test.
 
+You are not building business behavior yet. You are preparing the API surface so every next lab can be tested from a browser and described by an OpenAPI contract.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -56,6 +58,8 @@ builder.Services.AddSwaggerGen(options =>
 ## Enable Swagger UI
 
 Still in `Program.cs`, find the Lab 1 TODO inside the development block and add:
+
+This enables two things: the raw Swagger JSON document and the interactive Swagger UI page. Keeping it in the development block avoids exposing the UI by accident in another environment.
 
 ```csharp
 app.UseSwagger();

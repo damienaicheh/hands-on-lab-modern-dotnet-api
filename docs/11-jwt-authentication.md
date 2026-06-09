@@ -4,6 +4,8 @@ The document API now exposes useful operations. In this lab, you will protect th
 
 Authentication is configured from the options already provided in the starter.
 
+You will protect the document workflow, not the whole application. Operational endpoints such as `/health` remain open so monitoring can keep working.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -60,6 +62,8 @@ app.UseAuthorization();
 
 Inside `AddJwtBearer`, configure `OnChallenge`:
 
+The default challenge response can vary depending on middleware behavior. Returning `ProblemDetails` gives clients a predictable JSON shape.
+
 ```csharp
 options.Events = new JwtBearerEvents
 {
@@ -96,6 +100,8 @@ Do not add authorization to `/health`.
 ## Add Bearer Support To Swagger
 
 Inside `AddSwaggerGen`, add a bearer security definition:
+
+This does not authenticate anyone by itself. It only teaches Swagger UI how to send an `Authorization: Bearer ...` header when you test protected endpoints.
 
 ```csharp
 var bearerSecurityScheme = new OpenApiSecurityScheme

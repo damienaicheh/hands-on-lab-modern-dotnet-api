@@ -4,6 +4,8 @@ You now have the main API behaviors in place. In this lab, you will add automate
 
 The test infrastructure is already prepared. Your focus is the test intent, not the boilerplate.
 
+Each test should explain one behavior in code: what is arranged, what action happens, and what result proves the behavior is correct.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -63,6 +65,8 @@ Assert.Single(activityMonitor.UploadSucceededDocuments);
 
 Add a document with the same hash, then upload the same bytes again:
 
+This test protects the rule introduced in the robustness lab. If someone changes upload later, the test will catch accidental duplicate storage.
+
 ```csharp
 var duplicateBytes = Encoding.UTF8.GetBytes("same-content");
 dbContext.Documents.Add(new Document
@@ -86,6 +90,8 @@ Assert.Equal(0, storage.SaveCallCount);
 ## Test Download Behavior
 
 For a missing document:
+
+Download has two important branches: the document exists or it does not. Testing both keeps the public `404` behavior reliable.
 
 ```csharp
 var result = await service.DownloadAsync("missing", CancellationToken.None);

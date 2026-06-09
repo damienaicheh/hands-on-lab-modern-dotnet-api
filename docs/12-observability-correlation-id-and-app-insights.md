@@ -4,6 +4,8 @@ In the final lab, you will make the API easier to troubleshoot. You will add req
 
 The goal is to understand what happened, where it happened, and which document operation was involved.
 
+You are adding signals that help during debugging and production support. Logs explain the request path, correlation connects events together, and custom telemetry explains the document operation.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -77,6 +79,8 @@ builder.Services.AddHttpLogging(options =>
 ```
 
 Register Application Insights:
+
+Application Insights receives the platform telemetry, while the telemetry initializer enriches it with request context such as the correlation id.
 
 ```csharp
 builder.Services.AddHttpContextAccessor();
@@ -162,3 +166,5 @@ X-Correlation-Id: workshop-correlation-id
 > If Application Insights is configured, run a document workflow and inspect the emitted custom events and metrics.
 
 </div>
+
+---

@@ -4,6 +4,8 @@ In the previous lab, you wired SQL Server for metadata. Now you will add Azure B
 
 The API keeps metadata and content separated: SQL Server stores searchable properties, while Blob Storage stores the file bytes.
 
+This separation is common in document systems: the database is great for filters and relationships, while storage accounts are built for durable file content.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -78,6 +80,8 @@ public async Task DeleteAsync(string contentHash, CancellationToken cancellation
 ```
 
 Then implement `OpenReadAsync`:
+
+Returning `null` for a missing blob keeps the service contract simple. The document service can then decide whether that becomes a `404` or another recovery path.
 
 ```csharp
 public async Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)

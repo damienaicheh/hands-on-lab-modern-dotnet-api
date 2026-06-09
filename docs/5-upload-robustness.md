@@ -4,6 +4,8 @@ The upload happy path works, but real APIs need to be defensive. In this lab, yo
 
 This is the lab where the upload workflow becomes production-shaped.
 
+You will keep the successful path from the previous lab, then add the defensive behavior around it: reject bad input early, avoid duplicate content, and clean up when one dependency succeeds but another fails.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -89,6 +91,8 @@ if (!DocumentContentTypes.IsSupported(file.ContentType))
 ```
 
 Return `null` when the request is valid.
+
+This keeps the calling code straightforward: a validation failure contains a `ProblemDetails` response, and `null` means the request can continue.
 
 ## Detect Duplicates In The Service
 
@@ -176,6 +180,8 @@ catch (DbUpdateException)
 ```
 
 Add storage and unexpected error mappings using the same pattern.
+
+The important idea is consistency. Clients should not need to know whether the failure came from SQL Server, Blob Storage, or the document workflow internals.
 
 ## Build The Project
 

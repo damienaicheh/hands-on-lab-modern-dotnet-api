@@ -4,6 +4,8 @@ The API can now upload documents reliably. In this lab, you will let clients ret
 
 Search and download complete the core document workflow.
 
+After this lab, a document can go through the complete lifecycle from upload to retrieval. The API becomes useful enough to validate with real end-to-end scenarios.
+
 ## What You Will Learn
 
 In this lab, you will:
@@ -112,6 +114,8 @@ return Results.Ok(documents);
 ```
 
 Then implement download:
+
+`Results.File` streams the content back to the caller and keeps the original file name and content type. Range processing is enabled so clients can resume or partially read supported downloads.
 
 ```csharp
 var document = await documentService.DownloadAsync(id, cancellationToken);
