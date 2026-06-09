@@ -27,6 +27,8 @@ The search criteria and download result contracts are already provided.
 
 Open `DocumentService.cs` and implement `DownloadAsync`:
 
+Download needs both dependencies: SQL tells you which blob to read and what content type to return, while Blob Storage provides the actual stream.
+
 ```csharp
 var document = await _resiliencePipeline.ExecuteAsync(
 	async token => await _dbContext.Documents
@@ -55,6 +57,8 @@ return new DocumentContentResult(document.FileName, document.ContentType, stream
 ## Implement Search In The Service
 
 Implement the metadata query in `QueryDocumentsAsync`:
+
+The query starts with filters that SQL Server can handle efficiently. After loading the narrowed set, the service applies tag and free-text checks in memory to keep the lab code approachable.
 
 ```csharp
 var query = _dbContext.Documents.AsNoTracking();
@@ -96,6 +100,8 @@ return filtered.Select(ToDocumentDto).ToArray();
 ## Expose The Endpoints
 
 Open `DocumentEndpoints.cs` and implement the search handler:
+
+The endpoint only builds a `DocumentSearchCriteria` object from query string values. This keeps filtering rules inside the service instead of spreading them through the HTTP layer.
 
 ```csharp
 var documents = await documentService.SearchAsync(

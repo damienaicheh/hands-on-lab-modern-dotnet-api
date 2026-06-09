@@ -27,7 +27,7 @@
       "id": "2",
       "title": "SQL Database and Dependency Injection",
       "description": "Implement SQL database integration for the Document API and set up dependency injection for the project.",
-      "markdown": "docs/2-sql-database-and-di.md"
+      "markdown": "docs/2-sql-database-and-dependency-injection.md"
     },
     {
       "id": "3",

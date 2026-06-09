@@ -28,6 +28,8 @@ The factory, SQL Server fixture, fake storage, packages, and internal visibility
 
 Open `DocumentServiceTests.cs` and implement the upload success test:
 
+This test stays close to the service boundary. It uses a real EF Core context, but replaces Blob Storage and telemetry with simple in-memory doubles.
+
 ```csharp
 await using var dbContext = CreateDbContext();
 var storage = new RecordingStorage();
@@ -118,6 +120,8 @@ Assert.NotNull(result);
 ## Test HTTP Endpoints
 
 Open `DocumentApiEndpointsTests.cs` and add an integration test for the round trip:
+
+Endpoint tests validate the wiring that unit tests cannot see: routing, multipart parsing, authentication headers, model serialization, and status codes.
 
 ```csharp
 using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);

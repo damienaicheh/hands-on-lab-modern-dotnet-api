@@ -27,6 +27,8 @@ Authentication options, appsettings, and test token helpers are already provided
 
 Open `Program.cs` and add JWT bearer authentication:
 
+JWT bearer authentication lets the API validate a signed token without calling an external service for every request. The issuer, audience, and signing key define which tokens this API trusts.
+
 ```csharp
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -79,6 +81,8 @@ options.Events = new JwtBearerEvents
 ## Protect Document Endpoints
 
 Open `DocumentEndpoints.cs` and require authorization on the documents group:
+
+Authorization is applied at the route group level so every current and future `/documents` endpoint inherits the same protection by default.
 
 ```csharp
 var v1Group = documentGroup.MapGroup("/documents")

@@ -35,6 +35,8 @@ builder.Services.AddMemoryCache();
 
 Open `DocumentService.cs` and update `SearchAsync`.
 
+Caching belongs around the service query, not inside the endpoint. This way every caller benefits from the same behavior, even if another endpoint or background process reuses the service later.
+
 Create the key and check the cache:
 
 ```csharp
@@ -70,6 +72,8 @@ return documents;
 ## Create A Deterministic Cache Key
 
 Add the helper methods:
+
+The key must be deterministic: the same criteria should always produce the same key, even if the user adds extra spaces or changes casing.
 
 ```csharp
 private static string CreateCacheKey(int cacheVersion, DocumentSearchCriteria criteria)

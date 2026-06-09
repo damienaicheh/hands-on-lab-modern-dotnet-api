@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
@@ -27,7 +26,7 @@ static int ListLabs(LabManifest manifest)
 {
     foreach (var lab in manifest.Labs)
     {
-        Console.WriteLine($"{lab.Id}: {lab.Title}");
+        Console.WriteLine($"{lab.Id}: {lab.Markdown}");
     }
 
     return 0;
@@ -127,7 +126,7 @@ static int GenerateWorkshop(string repositoryRoot, LabManifest manifest, string[
         Console.Error.WriteLine("The following labs do not define a markdown file:");
         foreach (var lab in missingMarkdown)
         {
-            Console.Error.WriteLine($"  {lab.Id}: {lab.Title}");
+            Console.Error.WriteLine($"  {lab.Id}: {lab.Markdown}");
         }
 
         return 1;
@@ -267,17 +266,12 @@ internal sealed record LabDefinition
 {
     public required string Id { get; init; }
 
-    public required string Title { get; init; }
-
-    public string? Description { get; init; }
-
-    public string? Markdown { get; init; }
+    public required string Markdown { get; init; }
 }
 
 internal static partial class LabMarkerProcessor
 {
     private const string Starter = "starter";
-    private const string Solution = "solution";
 
     public static string Transform(string source, string targetLabId, string targetVariant, IReadOnlyDictionary<string, int> labOrder)
     {
@@ -381,11 +375,6 @@ internal static partial class LabMarkerProcessor
         if (!labOrder.TryGetValue(blockLabId, out var blockLabIndex))
         {
             return Starter;
-        }
-
-        if (blockLabIndex < targetLabIndex)
-        {
-            return Solution;
         }
 
         if (blockLabIndex == targetLabIndex)

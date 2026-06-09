@@ -1,4 +1,4 @@
-# Lab 1 - Skeleton + Swagger
+# Lab 1 - Setup Swagger in your API
 
 Welcome to the first lab of the Document API workshop. In this step, you will expose an OpenAPI document for the Minimal API and make the first endpoints visible in Swagger UI.
 
@@ -33,6 +33,8 @@ The health endpoint, DTOs, packages, and starter tests are already provided.
 
 Open `Program.cs` and find the Lab 1 TODO around Swagger services.
 
+Minimal APIs do not use controllers, so Swagger needs the endpoint explorer to discover route handlers and their metadata. Think of this as the bridge between your route declarations and the generated OpenAPI contract.
+
 Replace it with:
 
 ```csharp
@@ -65,6 +67,8 @@ Swagger UI stays development-only so the runtime pipeline remains clean outside 
 ## Add Endpoint Metadata
 
 Open `DocumentEndpoints.cs` and enrich the document routes with OpenAPI metadata:
+
+The metadata you add here is not only for the Swagger UI page. It is also the contract that other tools can reuse later to generate clients, validate API behavior, or document expected responses.
 
 ```csharp
 v1Group.MapGet("/search", SearchAsync)

@@ -28,6 +28,8 @@ The storage interface, options, packages, and configuration keys are already pro
 
 Open `AzureBlobDocumentStorageService.cs` and implement the constructor:
 
+Blob Storage is the right place for the binary file content because it is optimized for streams and large objects. SQL Server stays focused on metadata that you need to query.
+
 ```csharp
 public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
 {
@@ -44,6 +46,8 @@ public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
 
 Implement `SaveAsync`:
 
+The storage service receives a stream, not a byte array. This keeps the API friendly to larger files because callers do not need to load everything into memory before saving.
+
 ```csharp
 public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
 {
@@ -59,6 +63,8 @@ The blob name uses the content hash. This makes duplicate content easier to dete
 ## Open And Delete Content
 
 Implement `DeleteAsync`:
+
+Deletion is used later when the upload workflow needs to roll back a blob after a database failure. Keeping it in the storage abstraction makes the business service easier to read.
 
 ```csharp
 public async Task DeleteAsync(string contentHash, CancellationToken cancellationToken)

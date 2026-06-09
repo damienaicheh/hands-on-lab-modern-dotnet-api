@@ -28,6 +28,8 @@ Contracts, DTOs, storage, and database services are already provided.
 
 Open `DocumentEndpoints.cs` and find the `UploadAsync` handler.
 
+The endpoint should stay thin: it understands HTTP, form data, and response codes. The service will own the actual document workflow.
+
 Read the form data:
 
 ```csharp
@@ -70,6 +72,8 @@ return Results.Json(document, statusCode: StatusCodes.Status201Created);
 ## Implement The Service Happy Path
 
 Open `DocumentService.cs` and implement `UploadAsync`.
+
+This is where the application switches from HTTP concerns to business concerns: compute an identity for the content, store the bytes, store the metadata, and return the public DTO.
 
 Compute the content hash and reset the stream:
 

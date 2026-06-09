@@ -28,6 +28,8 @@ The telemetry initializer, monitoring options, and monitor interface are already
 
 Open `CorrelationIdMiddleware.cs` and implement `InvokeAsync`:
 
+A correlation id is the thread you can follow through logs, HTTP responses, and telemetry. If the caller already sends one, the API keeps it; otherwise it creates one.
+
 ```csharp
 var correlationId = ResolveCorrelationId(context.Request.Headers);
 context.TraceIdentifier = correlationId;
@@ -59,6 +61,8 @@ private static string ResolveCorrelationId(IHeaderDictionary headers)
 ## Register Observability Services
 
 Open `Program.cs` and add HTTP logging:
+
+HTTP logs answer the operational questions first: which route was called, how long it took, and what status code came back. The correlation id makes those entries easy to join with deeper telemetry.
 
 ```csharp
 builder.Services.AddHttpLogging(options =>
@@ -94,6 +98,8 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 ## Emit Business Telemetry
 
 Open `ApplicationInsightsDocumentActivityMonitor.cs` and implement search telemetry:
+
+Framework telemetry tells you that a request happened. Business telemetry tells you what the request meant for the document workflow.
 
 ```csharp
 _logger.LogInformation(

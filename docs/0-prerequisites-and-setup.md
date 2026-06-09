@@ -129,6 +129,7 @@ The deployment should take around 5 minutes to complete.
 [az-cli-install]: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 [az-portal]: https://portal.azure.com
 [visual-studio]: https://visualstudio.microsoft.com/
+[vs-code]: https://code.visualstudio.com/
 [docker-desktop]: https://www.docker.com/products/docker-desktop/
 [repo-fork]: https://github.com/damienaicheh/hands-on-lab-agent-framework-on-azure/fork
 [git-client]: https://git-scm.com/downloads

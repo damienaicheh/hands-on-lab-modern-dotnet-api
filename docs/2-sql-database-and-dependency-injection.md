@@ -27,6 +27,8 @@ The entity, options, mappings, and migration are already provided.
 
 Open `DocumentDbContext.cs` and expose the document metadata set:
 
+The `DbContext` is the unit of work for EF Core. It is the object your services will use to query and save document metadata without writing SQL by hand.
+
 ```csharp
 public DbSet<Document> Documents => Set<Document>();
 ```
@@ -74,6 +76,8 @@ public static async Task InitializeDocumentDatabaseAsync(
 ## Configure The SQL Provider
 
 Add the provider configuration:
+
+The workshop uses identity-based access to Azure SQL. That means the application receives a token through `DefaultAzureCredential` instead of storing a SQL username and password in configuration.
 
 ```csharp
 private static void ConfigureDatabase(DbContextOptionsBuilder builder, DocumentDatabaseOptions databaseOptions)

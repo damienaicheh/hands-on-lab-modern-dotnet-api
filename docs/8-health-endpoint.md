@@ -27,6 +27,8 @@ The health contracts, response models, and DI registration are already provided.
 
 Open `DocumentHealthStatusService.cs` and implement `GetStatusAsync`:
 
+A health endpoint should check the dependencies that make the API useful. Here, the service is healthy only when both SQL metadata and Blob content access are available.
+
 ```csharp
 var storageHealthy = await _storage.CanConnectAsync(cancellationToken);
 var databaseHealthy = await _dbContext.Database.CanConnectAsync(cancellationToken);
@@ -60,6 +62,8 @@ return new HealthStateResult(HealthStatus.Unhealthy, false, checks);
 ## Map Health To HTTP
 
 Open `HealthEndpoints.cs` and implement the response mapping:
+
+The response has two layers: an HTTP status for infrastructure tools and a body that gives humans or dashboards more detail.
 
 ```csharp
 var status = await healthStatusService.GetStatusAsync(cancellationToken);

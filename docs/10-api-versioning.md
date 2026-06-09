@@ -27,6 +27,8 @@ Swagger versioning helpers are already provided in the `OpenApi` folder.
 
 Open `Program.cs` and add API versioning services:
 
+Versioning makes the contract explicit. Instead of guessing which behavior a client expects, the API requires the caller to say which version it is using.
+
 ```csharp
 builder.Services
 	.AddApiVersioning(options =>
@@ -56,6 +58,8 @@ options.OperationFilter<SwaggerDefaultValues>();
 ## Create A Versioned Documents Group
 
 Open `DocumentEndpoints.cs` and replace the simple route group with a versioned API builder:
+
+Grouping the document routes keeps versioning in one place. Future versions can add a new group without touching `/health` or unrelated operational endpoints.
 
 ```csharp
 var documentGroup = endpoints.NewVersionedApi("Documents");

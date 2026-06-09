@@ -129,6 +129,7 @@ The deployment should take around 5 minutes to complete.
 [az-cli-install]: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 [az-portal]: https://portal.azure.com
 [visual-studio]: https://visualstudio.microsoft.com/
+[vs-code]: https://code.visualstudio.com/
 [docker-desktop]: https://www.docker.com/products/docker-desktop/
 [repo-fork]: https://github.com/damienaicheh/hands-on-lab-agent-framework-on-azure/fork
 [git-client]: https://git-scm.com/downloads
@@ -172,6 +173,8 @@ The health endpoint, DTOs, packages, and starter tests are already provided.
 
 Open `Program.cs` and find the Lab 1 TODO around Swagger services.
 
+Minimal APIs do not use controllers, so Swagger needs the endpoint explorer to discover route handlers and their metadata. Think of this as the bridge between your route declarations and the generated OpenAPI contract.
+
 Replace it with:
 
 ```csharp
@@ -204,6 +207,8 @@ Swagger UI stays development-only so the runtime pipeline remains clean outside 
 ## Add Endpoint Metadata
 
 Open `DocumentEndpoints.cs` and enrich the document routes with OpenAPI metadata:
+
+The metadata you add here is not only for the Swagger UI page. It is also the contract that other tools can reuse later to generate clients, validate API behavior, or document expected responses.
 
 ```csharp
 v1Group.MapGet("/search", SearchAsync)
@@ -285,6 +290,8 @@ The entity, options, mappings, and migration are already provided.
 
 Open `DocumentDbContext.cs` and expose the document metadata set:
 
+The `DbContext` is the unit of work for EF Core. It is the object your services will use to query and save document metadata without writing SQL by hand.
+
 ```csharp
 public DbSet<Document> Documents => Set<Document>();
 ```
@@ -332,6 +339,8 @@ public static async Task InitializeDocumentDatabaseAsync(
 ## Configure The SQL Provider
 
 Add the provider configuration:
+
+The workshop uses identity-based access to Azure SQL. That means the application receives a token through `DefaultAzureCredential` instead of storing a SQL username and password in configuration.
 
 ```csharp
 private static void ConfigureDatabase(DbContextOptionsBuilder builder, DocumentDatabaseOptions databaseOptions)
@@ -418,6 +427,8 @@ The storage interface, options, packages, and configuration keys are already pro
 
 Open `AzureBlobDocumentStorageService.cs` and implement the constructor:
 
+Blob Storage is the right place for the binary file content because it is optimized for streams and large objects. SQL Server stays focused on metadata that you need to query.
+
 ```csharp
 public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
 {
@@ -434,6 +445,8 @@ public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
 
 Implement `SaveAsync`:
 
+The storage service receives a stream, not a byte array. This keeps the API friendly to larger files because callers do not need to load everything into memory before saving.
+
 ```csharp
 public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
 {
@@ -449,6 +462,8 @@ The blob name uses the content hash. This makes duplicate content easier to dete
 ## Open And Delete Content
 
 Implement `DeleteAsync`:
+
+Deletion is used later when the upload workflow needs to roll back a blob after a database failure. Keeping it in the storage abstraction makes the business service easier to read.
 
 ```csharp
 public async Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
@@ -539,6 +554,8 @@ Contracts, DTOs, storage, and database services are already provided.
 
 Open `DocumentEndpoints.cs` and find the `UploadAsync` handler.
 
+The endpoint should stay thin: it understands HTTP, form data, and response codes. The service will own the actual document workflow.
+
 Read the form data:
 
 ```csharp
@@ -581,6 +598,8 @@ return Results.Json(document, statusCode: StatusCodes.Status201Created);
 ## Implement The Service Happy Path
 
 Open `DocumentService.cs` and implement `UploadAsync`.
+
+This is where the application switches from HTTP concerns to business concerns: compute an identity for the content, store the bytes, store the metadata, and return the public DTO.
 
 Compute the content hash and reset the stream:
 
@@ -696,6 +715,8 @@ Exceptions, upload options, content type helpers, and the resilience pipeline ar
 
 Open `DocumentUploadValidator.cs` and implement the upload rules:
 
+Validation is deliberately outside the endpoint body. That keeps HTTP parsing separate from business rules and makes the rules easier to test in isolation later.
+
 ```csharp
 if (file is null)
 {
@@ -758,6 +779,8 @@ Return `null` when the request is valid.
 
 Open `DocumentService.cs`. Before saving to storage, check whether a document with the same content hash already exists:
 
+The content hash is a stable fingerprint of the file bytes. If two uploads have the same hash, the API can treat them as the same document content even if the file name is different.
+
 ```csharp
 var existingDocument = await _resiliencePipeline.ExecuteAsync(
 	async token => await _dbContext.Documents
@@ -811,6 +834,8 @@ catch (DbUpdateException exception)
 ## Map Errors At The Endpoint
 
 Open `DocumentEndpoints.cs` and wrap the service call:
+
+The service throws domain or dependency exceptions. The endpoint translates those exceptions into HTTP responses that clients can understand and handle consistently.
 
 ```csharp
 try
@@ -885,6 +910,8 @@ The search criteria and download result contracts are already provided.
 
 Open `DocumentService.cs` and implement `DownloadAsync`:
 
+Download needs both dependencies: SQL tells you which blob to read and what content type to return, while Blob Storage provides the actual stream.
+
 ```csharp
 var document = await _resiliencePipeline.ExecuteAsync(
 	async token => await _dbContext.Documents
@@ -913,6 +940,8 @@ return new DocumentContentResult(document.FileName, document.ContentType, stream
 ## Implement Search In The Service
 
 Implement the metadata query in `QueryDocumentsAsync`:
+
+The query starts with filters that SQL Server can handle efficiently. After loading the narrowed set, the service applies tag and free-text checks in memory to keep the lab code approachable.
 
 ```csharp
 var query = _dbContext.Documents.AsNoTracking();
@@ -954,6 +983,8 @@ return filtered.Select(ToDocumentDto).ToArray();
 ## Expose The Endpoints
 
 Open `DocumentEndpoints.cs` and implement the search handler:
+
+The endpoint only builds a `DocumentSearchCriteria` object from query string values. This keeps filtering rules inside the service instead of spreading them through the HTTP layer.
 
 ```csharp
 var documents = await documentService.SearchAsync(
@@ -1031,6 +1062,8 @@ builder.Services.AddMemoryCache();
 
 Open `DocumentService.cs` and update `SearchAsync`.
 
+Caching belongs around the service query, not inside the endpoint. This way every caller benefits from the same behavior, even if another endpoint or background process reuses the service later.
+
 Create the key and check the cache:
 
 ```csharp
@@ -1066,6 +1099,8 @@ return documents;
 ## Create A Deterministic Cache Key
 
 Add the helper methods:
+
+The key must be deterministic: the same criteria should always produce the same key, even if the user adds extra spaces or changes casing.
 
 ```csharp
 private static string CreateCacheKey(int cacheVersion, DocumentSearchCriteria criteria)
@@ -1149,6 +1184,8 @@ The health contracts, response models, and DI registration are already provided.
 
 Open `DocumentHealthStatusService.cs` and implement `GetStatusAsync`:
 
+A health endpoint should check the dependencies that make the API useful. Here, the service is healthy only when both SQL metadata and Blob content access are available.
+
 ```csharp
 var storageHealthy = await _storage.CanConnectAsync(cancellationToken);
 var databaseHealthy = await _dbContext.Database.CanConnectAsync(cancellationToken);
@@ -1182,6 +1219,8 @@ return new HealthStateResult(HealthStatus.Unhealthy, false, checks);
 ## Map Health To HTTP
 
 Open `HealthEndpoints.cs` and implement the response mapping:
+
+The response has two layers: an HTTP status for infrastructure tools and a body that gives humans or dashboards more detail.
 
 ```csharp
 var status = await healthStatusService.GetStatusAsync(cancellationToken);
@@ -1267,6 +1306,8 @@ The factory, SQL Server fixture, fake storage, packages, and internal visibility
 ## Test Upload Happy Path
 
 Open `DocumentServiceTests.cs` and implement the upload success test:
+
+This test stays close to the service boundary. It uses a real EF Core context, but replaces Blob Storage and telemetry with simple in-memory doubles.
 
 ```csharp
 await using var dbContext = CreateDbContext();
@@ -1359,6 +1400,8 @@ Assert.NotNull(result);
 
 Open `DocumentApiEndpointsTests.cs` and add an integration test for the round trip:
 
+Endpoint tests validate the wiring that unit tests cannot see: routing, multipart parsing, authentication headers, model serialization, and status codes.
+
 ```csharp
 using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
 using var client = factory.CreateClient();
@@ -1428,6 +1471,8 @@ Swagger versioning helpers are already provided in the `OpenApi` folder.
 
 Open `Program.cs` and add API versioning services:
 
+Versioning makes the contract explicit. Instead of guessing which behavior a client expects, the API requires the caller to say which version it is using.
+
 ```csharp
 builder.Services
 	.AddApiVersioning(options =>
@@ -1457,6 +1502,8 @@ options.OperationFilter<SwaggerDefaultValues>();
 ## Create A Versioned Documents Group
 
 Open `DocumentEndpoints.cs` and replace the simple route group with a versioned API builder:
+
+Grouping the document routes keeps versioning in one place. Future versions can add a new group without touching `/health` or unrelated operational endpoints.
 
 ```csharp
 var documentGroup = endpoints.NewVersionedApi("Documents");
@@ -1550,6 +1597,8 @@ Authentication options, appsettings, and test token helpers are already provided
 
 Open `Program.cs` and add JWT bearer authentication:
 
+JWT bearer authentication lets the API validate a signed token without calling an external service for every request. The issuer, audience, and signing key define which tokens this API trusts.
+
 ```csharp
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -1602,6 +1651,8 @@ options.Events = new JwtBearerEvents
 ## Protect Document Endpoints
 
 Open `DocumentEndpoints.cs` and require authorization on the documents group:
+
+Authorization is applied at the route group level so every current and future `/documents` endpoint inherits the same protection by default.
 
 ```csharp
 var v1Group = documentGroup.MapGroup("/documents")
@@ -1684,6 +1735,8 @@ The telemetry initializer, monitoring options, and monitor interface are already
 
 Open `CorrelationIdMiddleware.cs` and implement `InvokeAsync`:
 
+A correlation id is the thread you can follow through logs, HTTP responses, and telemetry. If the caller already sends one, the API keeps it; otherwise it creates one.
+
 ```csharp
 var correlationId = ResolveCorrelationId(context.Request.Headers);
 context.TraceIdentifier = correlationId;
@@ -1715,6 +1768,8 @@ private static string ResolveCorrelationId(IHeaderDictionary headers)
 ## Register Observability Services
 
 Open `Program.cs` and add HTTP logging:
+
+HTTP logs answer the operational questions first: which route was called, how long it took, and what status code came back. The correlation id makes those entries easy to join with deeper telemetry.
 
 ```csharp
 builder.Services.AddHttpLogging(options =>
@@ -1750,6 +1805,8 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 ## Emit Business Telemetry
 
 Open `ApplicationInsightsDocumentActivityMonitor.cs` and implement search telemetry:
+
+Framework telemetry tells you that a request happened. Business telemetry tells you what the request meant for the document workflow.
 
 ```csharp
 _logger.LogInformation(

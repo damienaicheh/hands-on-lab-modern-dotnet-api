@@ -30,6 +30,8 @@ Exceptions, upload options, content type helpers, and the resilience pipeline ar
 
 Open `DocumentUploadValidator.cs` and implement the upload rules:
 
+Validation is deliberately outside the endpoint body. That keeps HTTP parsing separate from business rules and makes the rules easier to test in isolation later.
+
 ```csharp
 if (file is null)
 {
@@ -92,6 +94,8 @@ Return `null` when the request is valid.
 
 Open `DocumentService.cs`. Before saving to storage, check whether a document with the same content hash already exists:
 
+The content hash is a stable fingerprint of the file bytes. If two uploads have the same hash, the API can treat them as the same document content even if the file name is different.
+
 ```csharp
 var existingDocument = await _resiliencePipeline.ExecuteAsync(
 	async token => await _dbContext.Documents
@@ -145,6 +149,8 @@ catch (DbUpdateException exception)
 ## Map Errors At The Endpoint
 
 Open `DocumentEndpoints.cs` and wrap the service call:
+
+The service throws domain or dependency exceptions. The endpoint translates those exceptions into HTTP responses that clients can understand and handle consistently.
 
 ```csharp
 try
