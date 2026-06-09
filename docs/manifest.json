@@ -12,6 +12,12 @@
   ],
   "labs": [
     {
+      "id": "0",
+      "title": "Prerequisites and Setup",
+      "description": "Set up the development environment and prerequisites for the Document API project, including installing necessary tools and configuring the environment.",
+      "markdown": "docs/0-prerequisites-and-setup.md"
+    },
+    {
       "id": "1",
       "title": "Swagger setup",
       "description": "Set up Swagger for the Document API project to enable API documentation and testing.",

@@ -150,8 +150,6 @@ static int GenerateWorkshop(string repositoryRoot, LabManifest manifest, string[
     }
 
     var builder = new StringBuilder();
-    builder.AppendLine("# Workshop");
-    builder.AppendLine();
 
     foreach (var lab in manifest.Labs)
     {
