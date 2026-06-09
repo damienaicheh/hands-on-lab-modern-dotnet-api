@@ -138,7 +138,7 @@ The deployment should take around 5 minutes to complete.
 
 ---
 
-# Lab 1 - Skeleton + Swagger
+# Lab 1 - Setup Swagger in your API
 
 Welcome to the first lab of the Document API workshop. In this step, you will expose an OpenAPI document for the Minimal API and make the first endpoints visible in Swagger UI.
 
