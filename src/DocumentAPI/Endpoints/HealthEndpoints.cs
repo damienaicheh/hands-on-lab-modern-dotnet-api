@@ -3,6 +3,7 @@ namespace DocumentAPI.Endpoints;
 using System.Linq;
 using DocumentAPI.Models;
 using DocumentAPI.Services.Health;
+using DocumentAPI.Services.Health.Contracts;
 
 /// <summary>
 /// Registers the health-related Minimal API endpoints.
@@ -38,22 +39,22 @@ public static class HealthEndpoints
 
         if (!status.IsAvailable)
         {
-            return Results.Json(new UnhealthyStatus { Status = status.Status }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            return Results.Json(new UnhealthyStatus { Status = status.Status.ToString() }, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
-        if (!string.Equals(status.Status, "Degraded", StringComparison.OrdinalIgnoreCase))
+        if (status.Status != HealthStatus.Degraded)
         {
-            return Results.Ok(new HealthyOrDegradedStatus { Status = status.Status });
+            return Results.Ok(new HealthyOrDegradedStatus { Status = status.Status.ToString() });
         }
 
         return Results.Ok(new HealthyOrDegradedStatus
         {
-            Status = status.Status,
+            Status = status.Status.ToString(),
             Checks = status.Checks.ToDictionary(
                 pair => pair.Key,
                 pair => new HealthCheckStatus
                 {
-                    Status = pair.Value.Status,
+                    Status = pair.Value.Status.ToString(),
                     Description = pair.Value.Description,
                 },
                 StringComparer.Ordinal),

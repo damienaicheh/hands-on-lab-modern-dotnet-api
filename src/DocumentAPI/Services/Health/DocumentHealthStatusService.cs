@@ -21,23 +21,23 @@ internal sealed class DocumentHealthStatusService(IDocumentStorageService storag
         var checks = new Dictionary<string, HealthDependencyState>(StringComparer.Ordinal)
         {
             ["database"] = databaseHealthy
-                ? new HealthDependencyState("Healthy")
-                : new HealthDependencyState("Unhealthy", "Database is unreachable."),
+                ? new HealthDependencyState(HealthStatus.Healthy)
+                : new HealthDependencyState(HealthStatus.Unhealthy, "Database is unreachable."),
             ["storage"] = storageHealthy
-                ? new HealthDependencyState("Healthy")
-                : new HealthDependencyState("Unhealthy", "Storage is unreachable."),
+                ? new HealthDependencyState(HealthStatus.Healthy)
+                : new HealthDependencyState(HealthStatus.Unhealthy, "Storage is unreachable."),
         };
 
         if (storageHealthy && databaseHealthy)
         {
-            return new HealthStateResult("Healthy", true, checks);
+            return new HealthStateResult(HealthStatus.Healthy, true, checks);
         }
 
         if (storageHealthy || databaseHealthy)
         {
-            return new HealthStateResult("Degraded", true, checks);
+            return new HealthStateResult(HealthStatus.Degraded, true, checks);
         }
 
-        return new HealthStateResult("Unhealthy", false, checks);
+        return new HealthStateResult(HealthStatus.Unhealthy, false, checks);
     }
 }

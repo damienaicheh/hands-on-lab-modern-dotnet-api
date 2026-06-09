@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using DocumentAPI.DTOs;
 using DocumentAPI.Models;
+using DocumentAPI.Services.Health.Contracts;
 using DocumentAPI.Services.Storage;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -81,12 +82,12 @@ public sealed class DocumentApiEndpointsTests
         var payload = await response.Content.ReadFromJsonAsync<HealthyOrDegradedStatus>();
 
         Assert.NotNull(payload);
-        Assert.Equal("Degraded", payload!.Status);
+        Assert.Equal(HealthStatus.Degraded.ToString(), payload!.Status);
         Assert.NotNull(payload.Checks);
 
         var checks = payload.Checks!;
-        Assert.Equal("Healthy", checks["database"].Status);
-        Assert.Equal("Unhealthy", checks["storage"].Status);
+        Assert.Equal(HealthStatus.Healthy.ToString(), checks["database"].Status);
+        Assert.Equal(HealthStatus.Unhealthy.ToString(), checks["storage"].Status);
         Assert.False(string.IsNullOrWhiteSpace(checks["storage"].Description));
     }
 
