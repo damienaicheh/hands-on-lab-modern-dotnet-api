@@ -386,15 +386,19 @@ Logging belongs at the boundary where the API translates the exception into HTTP
 
 The important idea is consistency. Clients should not need to know whether the failure came from SQL Server, Blob Storage, or the document workflow internals.
 
-## Build The Project
+## Run And Test The Upload
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http` and send the upload request again. The first valid upload should still return `201 Created`.
+
+Then send the same upload a second time to validate duplicate detection.
 
 <div class="task" data-title="Validation">
 
-> Try these scenarios from Swagger UI or the HTTP file:
+> Try these scenarios from `src/http/requests.http`:
 >
 > - unsupported content type returns `400 Bad Request`
 > - duplicate content returns `409 Conflict`
