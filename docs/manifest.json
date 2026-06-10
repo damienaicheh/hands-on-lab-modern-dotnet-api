@@ -88,6 +88,12 @@
       "title": "Observability: Correlation ID and Application Insights",
       "description": "Add observability features to the Document API, including correlation ID for tracing and integration with Application Insights for monitoring.",
       "markdown": "docs/12-observability-correlation-id-and-app-insights.md"
+    },
+    {
+      "id": "13",
+      "title": "Closing",
+      "description": "Wrap up the workshop and provide final thoughts on the Document API project.",
+      "markdown": "docs/13-closing.md"
     }
   ]
 }
