@@ -1,8 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Xml;
-using System.Xml.Linq;
 
 var repositoryRoot = FindRepositoryRoot(AppContext.BaseDirectory);
 var manifestPath = Path.Combine(repositoryRoot, "docs", "manifest.json");
@@ -104,56 +102,7 @@ static void GenerateLab(string repositoryRoot, LabManifest manifest, LabDefiniti
         }
     }
 
-    NormalizeSolutionFile(outputRoot);
-
     Console.WriteLine($"Generated {Path.GetRelativePath(repositoryRoot, outputRoot)}");
-}
-
-static void NormalizeSolutionFile(string outputRoot)
-{
-    var solutionPath = Path.Combine(outputRoot, "DocumentAPI.slnx");
-
-    if (!File.Exists(solutionPath))
-    {
-        return;
-    }
-
-    var solutionDocument = XDocument.Load(solutionPath, LoadOptions.PreserveWhitespace);
-    var missingEntries = solutionDocument
-        .Descendants()
-        .Where(element => element.Name.LocalName is "File" or "Project")
-        .Where(element =>
-        {
-            var referencedPath = element.Attribute("Path")?.Value;
-            return string.IsNullOrWhiteSpace(referencedPath)
-                || !File.Exists(Path.Combine(outputRoot, referencedPath));
-        })
-        .ToArray();
-
-    foreach (var entry in missingEntries)
-    {
-        entry.Remove();
-    }
-
-    var emptyFolders = solutionDocument
-        .Descendants()
-        .Where(element => element.Name.LocalName == "Folder")
-        .Where(element => !element.Elements().Any())
-        .ToArray();
-
-    foreach (var folder in emptyFolders)
-    {
-        folder.Remove();
-    }
-
-    var writerSettings = new XmlWriterSettings
-    {
-        OmitXmlDeclaration = true,
-        Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
-    };
-
-    using var writer = XmlWriter.Create(solutionPath, writerSettings);
-    solutionDocument.Save(writer);
 }
 
 static int GenerateWorkshop(string repositoryRoot, LabManifest manifest, string[] args)

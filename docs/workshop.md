@@ -412,9 +412,9 @@ private static string CreateSqlConnectionStringFromSettings(string serviceUri, s
 }
 ```
 
-## Build The Project
+## Start The Project
 
-Build the project using the **Run** button in your Visual Studio or the following command lines:
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
 dotnet run --project src/DocumentAPI/DocumentAPI.csproj
@@ -595,6 +595,7 @@ You only need to edit these files:
 
 - `src/DocumentAPI/Endpoints/DocumentEndpoints.cs`
 - `src/DocumentAPI/Services/Documents/DocumentService.cs`
+- `src/DocumentAPI/Services/DependencyInjection.cs`
 
 Contracts, DTOs, storage, and database services are already provided.
 
@@ -645,6 +646,8 @@ var document = await documentService.UploadAsync(
 return Results.Json(document, statusCode: StatusCodes.Status201Created);
 ```
 
+As you can see, the endpoint also handles validation failures by returning problem details. The `Results.Problem` method is a convenient way to create a problem details response with the appropriate content type and status code. You don't need to create a`APIError` class or `APIResponse` class manually it's all handled by the `Results` class provided by ASP.NET Core.
+
 ## Implement The Service Happy Path
 
 Open `DocumentService.cs` and implement `UploadAsync`.
@@ -691,7 +694,11 @@ _activityMonitor.TrackUploadSucceeded(documentDto, stopwatch.Elapsed.TotalMillis
 return documentDto;
 ```
 
-Then implement the DTO mapping helper:
+As you can see, the storage service is responsible for saving the file content, while the database context is responsible for saving the metadata. 
+
+A stopwatch is used to track the time taken for the upload operation, and the activity monitor is used to log a successful custom upload event with the document details and elapsed time. While time taken by an endpoint can be automatically tracked by Application Insights, custom events like this upload succeeded can provide more granular insights into specific operations within your application. You will see the implementation of the `TrackUploadSucceeded` method in the next lab when you implement Application Insights integration.
+
+Then the service maps the `Document` entity which represent the database object to a `DocumentDto` that can be returned to the client. Let's implement it:
 
 ```csharp
 private static DocumentDto ToDocumentDto(Document document)
@@ -713,15 +720,37 @@ private static DocumentDto ToDocumentDto(Document document)
 }
 ```
 
-## Test The Upload
+By doing so, you ensure that the API response is decoupled from the internal database representation, allowing for more flexibility in how you manage and evolve your data models over time.
 
-Build the project:
+## Register The Document Service
 
-```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+Open `DependencyInjection.cs` and update the service registration to include the `DocumentService` implementation:
+
+```csharp
+services.AddScoped<IDocumentService, DocumentService>();
 ```
 
-You can use Swagger UI or `src/http/requests.http` to send a multipart upload.
+## Test The Upload
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
+
+```bash
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
+```
+
+Inside the Solution Items, open the `http/requests.http` file to send a multipart upload:
+
+![Send request to upload](./assets/send-upload-request-happy-path.png)
+
+You must see the `201 Created` response with the uploaded document details and if you go inside your Azure SQL Database you should see the new document metadata row created:
+
+![Document metadata in Azure SQL Database](./assets/document-metadata-happy-path.png)
+
+If you check your resource group, inside the Storage Account, inside **Containers** select the container named **documents** and you should see the new blob with the content of the uploaded file:
+
+![Blob content in Azure Storage](./assets/blob-content-happy-path.png)
+
+To upload new files you can modify the name `sample-1.pdf` to point to other files in the `files` folder.
 
 <div class="task" data-title="Validation">
 

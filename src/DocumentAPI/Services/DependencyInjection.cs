@@ -38,14 +38,10 @@ public static class DependencyInjection
 
         services.AddSingleton<IDocumentActivityMonitor, ApplicationInsightsDocumentActivityMonitor>();
 
-        // <lab id="5">
-        //|        // TODO Lab 5: Register the SQL resilience pipeline.
+        // Register the SQL resilience pipeline.
         services.AddSingleton(DocumentResiliencePipeline.Create());
-        // </lab>
-        // <lab id="7">
-        //|        // TODO Lab 7: Register the shared search cache version.
+        // Register the shared search cache version.
         services.AddSingleton<DocumentSearchCacheVersion>();
-        // </lab>
 
         // Transient: the validator is lightweight and stateless, so a fresh instance per resolution avoids carrying mutable state across calls.
         services.AddTransient<IDocumentUploadValidator, DocumentUploadValidator>();

@@ -33,11 +33,11 @@ internal sealed class DocumentService(
     private readonly DocumentDbContext _dbContext = dbContext;
     private readonly IDocumentStorageService _storage = storage;
     private readonly IDocumentActivityMonitor _activityMonitor = activityMonitor;
-    private readonly IMemoryCache _cache = cache;
-    private readonly DocumentSearchCacheVersion _cacheVersion = cacheVersion;
-    private readonly ResiliencePipeline _resiliencePipeline = resiliencePipeline;
-    private readonly DocumentApiOptions _options = options.Value;
     private readonly ILogger<DocumentService> _logger = logger;
+    private readonly IMemoryCache _cache = cache ?? new MemoryCache(new MemoryCacheOptions());
+    private readonly DocumentSearchCacheVersion _cacheVersion = cacheVersion ?? new DocumentSearchCacheVersion();
+    private readonly ResiliencePipeline _resiliencePipeline = resiliencePipeline ?? DocumentResiliencePipeline.Create();
+    private readonly DocumentApiOptions _options = options?.Value ?? new DocumentApiOptions();
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<DocumentDto>> SearchAsync(DocumentSearchCriteria criteria, CancellationToken cancellationToken)

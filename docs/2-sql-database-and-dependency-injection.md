@@ -128,9 +128,9 @@ private static string CreateSqlConnectionStringFromSettings(string serviceUri, s
 }
 ```
 
-## Build The Project
+## Start The Project
 
-Build the project using the **Run** button in your Visual Studio or the following command lines:
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
 dotnet run --project src/DocumentAPI/DocumentAPI.csproj
