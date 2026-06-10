@@ -26,8 +26,8 @@ internal sealed class DocumentHealthStatusService(
     public async Task<HealthStateResult> GetStatusAsync(CancellationToken cancellationToken)
     {
         // <lab id="8">
-        //|        // TODO Lab 8: Check SQL and Blob Storage connectivity and return the evaluated state.
-        //|        throw new NotImplementedException("TODO Lab 8: Check SQL and Blob Storage connectivity and return the evaluated state.");
+        //|        // TODO Lab 8: Check cached SQL and Blob Storage connectivity and return the evaluated state.
+        //|        throw new NotImplementedException("TODO Lab 8: Check cached SQL and Blob Storage connectivity and return the evaluated state.");
         var storageHealthy = await GetCachedConnectivityAsync(
             StorageConnectivityCacheKey,
             token => _storage.CanConnectAsync(token),

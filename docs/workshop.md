@@ -1199,6 +1199,7 @@ In this lab, you will:
 
 - Check database connectivity.
 - Check Blob Storage connectivity.
+- Re-evaluate dependency connectivity on a short cache interval instead of relying on a startup-only result.
 - Return `Healthy`, `Degraded`, or `Unhealthy`.
 - Include per-dependency details when the service is degraded.
 - Keep `/health` anonymous.
@@ -1218,9 +1219,17 @@ Open `DocumentHealthStatusService.cs` and implement `GetStatusAsync`:
 
 A health endpoint should check the dependencies that make the API useful. Here, the service is healthy only when both SQL metadata and Blob content access are available.
 
+The service includes a small in-memory cache around connectivity probes. This keeps `/health` inexpensive while still refreshing the dependency state periodically when the endpoint is called.
+
 ```csharp
-var storageHealthy = await _storage.CanConnectAsync(cancellationToken);
-var databaseHealthy = await _dbContext.Database.CanConnectAsync(cancellationToken);
+var storageHealthy = await GetCachedConnectivityAsync(
+	StorageConnectivityCacheKey,
+	token => _storage.CanConnectAsync(token),
+	cancellationToken);
+var databaseHealthy = await GetCachedConnectivityAsync(
+	DatabaseConnectivityCacheKey,
+	token => _dbContext.Database.CanConnectAsync(token),
+	cancellationToken);
 var checks = new Dictionary<string, HealthDependencyState>(StringComparer.Ordinal)
 {
 	["database"] = databaseHealthy
