@@ -9,7 +9,7 @@ The solution for a lab is intentionally the starter snapshot of the next lab. Th
 ```bash
 dotnet run --project tools/LabGen -- list
 dotnet run --project tools/LabGen -- generate
-dotnet run --project tools/LabGen -- generate --lab 02-document-retry
+dotnet run --project tools/LabGen -- generate --lab 1
 dotnet run --project tools/LabGen -- workshop
 ```
 

@@ -36,31 +36,7 @@ To retrieve the lab content :
 - A GitHub account (Free, Team or Enterprise)
 - Create a [fork][repo-fork] of the repository from the **main** branch to help you keep track of your changes
 
-2 development options are available:
-  - 🥈 Local Devcontainer
-  - 🥉 Local Dev Environment with all the prerequisites detailed below
-
-### 🥈 : Using a local Devcontainer
-
-This repo comes with a Devcontainer configuration that will let you open a fully configured dev environment from your local Visual Studio Code, while still being completely isolated from the rest of your local machine configuration : No more dependancy conflict.
-Here are the required tools to do so :
-
-- [Git client][git-client]
-- [Docker Desktop][docker-desktop] running
-- [Visual Studio Code][vs-code] installed on your machine
-
-Start by cloning the repository you just forked on your local Machine and open the local folder in Visual Studio Code.
-Once you have cloned the repository locally, make sure Docker Desktop is up and running and open the cloned repository in Visual Studio Code.  
-
-You will be prompted to open the project in a Dev Container. Click on `Reopen in Container`.
-
-If you are not prompted by Visual Studio Code, you can open the command palette (`Ctrl + Shift + P`) and search for `Reopen in Container` and select it:
-
-![devcontainer-reopen](./assets/devcontainer-reopen.png)
-
-Once you have reopened the project in the Dev Container, Visual Studio Code will start building the container image based on the `.devcontainer` folder. This process might take a few minutes, but it only happens the first time you open the project in a Dev Container.
-
-### 🥉 : Using your own local environment
+### Setup your local environment
 
 The following tools and access will be necessary to run the lab on a local environment:  
 
@@ -68,7 +44,7 @@ The following tools and access will be necessary to run the lab on a local envir
 - [Visual Studio][visual-studio] installed
 - [Azure CLI][az-cli-install] installed on your machine
 - [Terraform][download-terraform] installed on your machine (to deploy the infrastructure as code)
-- [Docker Desktop][docker-desktop]
+- [Docker Desktop][docker-desktop] installed on your machine
 
 Once you have set up your local environment, you can clone the repository you just forked on your machine, and open the solution in Visual Studio.
 

@@ -51,8 +51,14 @@ public static class DependencyInjection
         services.AddTransient<IDocumentUploadValidator, DocumentUploadValidator>();
         
         // Scoped: these services depend on a request-scoped DocumentDbContext, so sharing one instance per request keeps a consistent unit-of-work and avoids lifetime mismatches.
+        // <lab id="7">
+        //|        services.AddScoped<IDocumentService>(_ => throw new NotImplementedException("TODO Lab 4: Implement the document workflow before calling document endpoints."));
         services.AddScoped<IDocumentService, DocumentService>();
+        // </lab>
+        // <lab id="8">
+        //|        services.AddScoped<IHealthStatusService>(_ => throw new NotImplementedException("TODO Lab 8: Implement health status checks before calling the health endpoint."));
         services.AddScoped<IHealthStatusService, DocumentHealthStatusService>();
+        // </lab>
 
         return services;
     }
@@ -66,7 +72,6 @@ public static class DependencyInjection
     {
         // <lab id="2">
         //|    // TODO Lab 2: Apply pending EF Core migrations at startup.
-        //|    return Task.CompletedTask;
         using var scope = services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DocumentDbContext>();
 
