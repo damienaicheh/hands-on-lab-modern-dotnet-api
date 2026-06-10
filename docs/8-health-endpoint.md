@@ -21,18 +21,27 @@ In this lab, you will:
 
 You only need to edit these files:
 
+- `src/DocumentAPI/Services/DependencyInjection.cs`
 - `src/DocumentAPI/Services/Health/DocumentHealthStatusService.cs`
 - `src/DocumentAPI/Endpoints/HealthEndpoints.cs`
 
 The health contracts, response models, and DI registration are already provided.
 
-## Evaluate Dependency Health
+## Register The Health Service
 
-Open `DocumentHealthStatusService.cs` and implement `GetStatusAsync`:
+Open `DependencyInjection.cs` and replace the health placeholder with the real implementation:
+
+```csharp
+services.AddScoped<IHealthStatusService, DocumentHealthStatusService>();
+```
+
+## Evaluate Dependency Health
 
 A health endpoint should check the dependencies that make the API useful. Here, the service is healthy only when both SQL metadata and Blob content access are available.
 
 The service includes a small in-memory cache around connectivity probes. This keeps `/health` inexpensive while still refreshing the dependency state periodically when the endpoint is called.
+
+Open `DocumentHealthStatusService.cs` and implement `GetStatusAsync`:
 
 ```csharp
 var storageHealthy = await GetCachedConnectivityAsync(
@@ -72,7 +81,7 @@ return new HealthStateResult(HealthStatus.Unhealthy, false, checks);
 
 ## Map Health To HTTP
 
-Open `HealthEndpoints.cs` and implement the response mapping:
+Open `HealthEndpoints.cs` and implement the response mapping inside the `GetHealthAsync` method:
 
 The response has two layers: an HTTP status for infrastructure tools and a body that gives humans or dashboards more detail.
 
@@ -117,17 +126,22 @@ return Results.Ok(new HealthyOrDegradedStatus
 
 </div>
 
-## Build The Project
+## Run And Test Health
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http` and send the `Health` request.
 
 <div class="task" data-title="Validation">
 
-> Call `/health` and confirm that it returns a status value.
+> Call `/health` from `src/http/requests.http` and confirm that it returns a status value.
 >
 > If one dependency is unavailable, the response should be `Degraded` and include dependency details.
+> Tips: To be able to see the `Degraded` status, you can temporarily change a network settings, for instance by turning off the network access to the storage account if it's public. The health check will refresh every five minutes.
 
 </div>
 
