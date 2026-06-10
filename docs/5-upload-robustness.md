@@ -388,6 +388,8 @@ The important idea is consistency. Clients should not need to know whether the f
 
 ## Run And Test The Upload
 
+Start the project using the **Run** button in your Visual Studio or the following command lines:
+
 ```bash
 dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```

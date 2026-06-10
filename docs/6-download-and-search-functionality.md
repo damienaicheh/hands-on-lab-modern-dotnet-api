@@ -296,6 +296,8 @@ catch (Exception exception) when (exception is not OperationCanceledException)
 
 ## Run And Test The Workflow
 
+Start the project using the **Run** button in your Visual Studio or the following command lines:
+
 ```bash
 dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
