@@ -608,6 +608,8 @@ The endpoint should stay thin: it understands HTTP, form data, and response code
 Read the form data:
 
 ```csharp
+var logger = loggerFactory.CreateLogger("DocumentEndpoints");
+
 if (!request.HasFormContentType)
 {
 	return Results.Problem(
@@ -675,12 +677,17 @@ var documentId = Guid.NewGuid().ToString("N");
 
 await _storage.SaveAsync(hash, command.Content, md5, cancellationToken);
 
+var (title, description, source, tags) = NormalizeMetadata(command.Metadata);
 var document = new Document
 {
 	Id = documentId,
 	FileName = command.FileName,
 	ContentType = command.ContentType,
 	Size = command.Length,
+	Title = title,
+	Description = description,
+	Source = source,
+	Tags = tags,
 	ContentHash = hash,
 	CreatedUtc = DateTimeOffset.UtcNow,
 };
@@ -693,6 +700,8 @@ stopwatch.Stop();
 _activityMonitor.TrackUploadSucceeded(documentDto, stopwatch.Elapsed.TotalMilliseconds);
 return documentDto;
 ```
+
+The `NormalizeMetadata` helper trims text fields, removes empty tags, and keeps only one copy of each tag using a case-insensitive comparison. That way the API stores clean metadata from the first upload workflow.
 
 As you can see, the storage service is responsible for saving the file content, while the database context is responsible for saving the metadata. 
 
@@ -766,8 +775,6 @@ To upload new files you can modify the name `sample-1.pdf` to point to other fil
 
 The upload happy path works, but real APIs need to be defensive. In this lab, you will reject invalid requests, detect duplicate content, clean up after dependency failures, and return predictable error responses.
 
-This is the lab where the upload workflow becomes production-shaped.
-
 You will keep the successful path from the previous lab, then add the defensive behavior around it: reject bad input early, avoid duplicate content, and clean up when one dependency succeeds but another fails.
 
 ## What You Will Learn
@@ -794,9 +801,9 @@ Exceptions, upload options, content type helpers, and the resilience pipeline ar
 
 ## Strengthen Upload Validation
 
-Open `DocumentUploadValidator.cs` and implement the upload rules:
-
 Validation is deliberately outside the endpoint body. That keeps HTTP parsing separate from business rules and makes the rules easier to test in isolation later.
+
+Open `DocumentUploadValidator.cs` and implement the upload rules inside the `Validate` method:
 
 ```csharp
 if (file is null)
@@ -856,15 +863,23 @@ if (!DocumentContentTypes.IsSupported(file.ContentType))
 
 Return `null` when the request is valid.
 
+```csharp
+return null;
+```
+
 This keeps the calling code straightforward: a validation failure contains a `ProblemDetails` response, and `null` means the request can continue.
+
+As you can see, the validation logic is entirely separate from the endpoint and service. That makes it easier to test and maintain as the rules evolve.
 
 ## Detect Duplicates In The Service
 
-Open `DocumentService.cs`. Before saving to storage, check whether a document with the same content hash already exists:
-
 The content hash is a stable fingerprint of the file bytes. If two uploads have the same hash, the API can treat them as the same document content even if the file name is different.
 
+Open `DocumentService.cs`. In the `UploadAsync` method, just after computing the content hash, check for an existing document with the same hash:
+
 ```csharp
+// ... command.Content.Position = 0;
+
 var existingDocument = await _resiliencePipeline.ExecuteAsync(
 	async token => await _dbContext.Documents
 		.AsNoTracking()
@@ -883,7 +898,7 @@ if (existingDocument is not null)
 }
 ```
 
-Wrap the storage and database writes in a `try` block and track whether the blob was uploaded:
+Wrap the storage and database writes in a `try` block and track whether the blob was uploaded. If the blob upload succeeds but SQL persistence fails, the service can remove the blob so the two dependencies do not drift apart.
 
 ```csharp
 var documentId = Guid.NewGuid().ToString("N");
@@ -894,7 +909,7 @@ try
 	await _storage.SaveAsync(hash, command.Content, md5, cancellationToken);
 	blobUploaded = true;
 
-	// Create the entity, add it to the DbContext, then save with the resilience pipeline.
+	// Previous code to create the entity, add it to the DbContext, then save with the resilience pipeline.
 }
 catch (DbUpdateException exception)
 {
@@ -908,6 +923,169 @@ catch (DbUpdateException exception)
 }
 ```
 
+That sketch shows the shape of the defensive code, but the final method needs a little more care:
+
+- Save SQL changes through `_resiliencePipeline` so transient database failures can be retried.
+- Log storage integrity and Azure Storage dependency failures before rethrowing.
+- Recheck for a conflicting document after `DbUpdateException`, because another request may have inserted the same content hash first.
+- Only delete the blob when SQL failed and no duplicate row exists.
+- Convert the duplicate race into `DuplicateDocumentException` so the endpoint can return `409 Conflict`.
+
+At the end of this section, your `UploadAsync` method should look like this:
+
+```csharp
+public async Task<DocumentDto> UploadAsync(DocumentUploadCommand command, CancellationToken cancellationToken)
+{
+	if (!command.Content.CanSeek)
+	{
+		throw new ArgumentException("The upload content stream must support seeking.", nameof(command));
+	}
+
+	var stopwatch = Stopwatch.StartNew();
+	var md5 = command.Content.ComputeMd5();
+	var hash = Convert.ToHexString(md5);
+	command.Content.Position = 0;
+
+	// Polly retries transient SQL failures before the upload is allowed to continue.
+	var existingDocument = await _resiliencePipeline.ExecuteAsync(
+		async token => await _dbContext.Documents
+			.AsNoTracking()
+			.FirstOrDefaultAsync(document => document.ContentHash == hash, token),
+		cancellationToken);
+
+	if (existingDocument is not null)
+	{
+		stopwatch.Stop();
+		_activityMonitor.TrackUploadDuplicate(
+			existingDocument.Id,
+			command.ContentType,
+			command.Length,
+			stopwatch.Elapsed.TotalMilliseconds);
+		throw new DuplicateDocumentException(existingDocument.Id);
+	}
+
+	var documentId = Guid.NewGuid().ToString("N");
+	var blobUploaded = false;
+
+	try
+	{
+		// Store the blob first so the SQL row never points to content that was not saved.
+		await _storage.SaveAsync(hash, command.Content, md5, cancellationToken);
+		blobUploaded = true;
+
+		var (title, description, source, tags) = NormalizeMetadata(command.Metadata);
+		var document = new Document
+		{
+			Id = documentId,
+			FileName = command.FileName,
+			ContentType = command.ContentType,
+			Size = command.Length,
+			Title = title,
+			Description = description,
+			Source = source,
+			Tags = tags,
+			ContentHash = hash,
+			CreatedUtc = DateTimeOffset.UtcNow,
+		};
+
+		_dbContext.Documents.Add(document);
+		// Save metadata through Polly because SQL persistence can fail transiently.
+		await _resiliencePipeline.ExecuteAsync(
+			async token => await _dbContext.SaveChangesAsync(token),
+			cancellationToken);
+
+		var documentDto = ToDocumentDto(document);
+		stopwatch.Stop();
+		_activityMonitor.TrackUploadSucceeded(documentDto, stopwatch.Elapsed.TotalMilliseconds);
+		return documentDto;
+	}
+	catch (DocumentStorageIntegrityException exception)
+	{
+		stopwatch.Stop();
+		_logger.LogError(
+			exception,
+			"Document upload failed due to storage integrity validation. ContentHash={ContentHash} FileName={FileName} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
+			hash,
+			command.FileName,
+			command.ContentType,
+			command.Length,
+			stopwatch.Elapsed.TotalMilliseconds);
+		throw;
+	}
+	catch (RequestFailedException exception)
+	{
+		stopwatch.Stop();
+		_logger.LogError(
+			exception,
+			"Document upload failed due to storage dependency error. ContentHash={ContentHash} FileName={FileName} StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode} DurationMs={DurationMs}",
+			hash,
+			command.FileName,
+			exception.Status,
+			exception.ErrorCode,
+			stopwatch.Elapsed.TotalMilliseconds);
+		throw;
+	}
+	catch (DbUpdateException exception)
+	{
+		// If SQL failed because another request inserted the same hash, report a duplicate instead of deleting the shared blob.
+		var conflictingDocument = await _resiliencePipeline.ExecuteAsync(
+			async token => await _dbContext.Documents
+				.AsNoTracking()
+				.FirstOrDefaultAsync(document => document.ContentHash == hash, token),
+			cancellationToken);
+
+		if (conflictingDocument is null)
+		{
+			if (blobUploaded)
+			{
+				try
+				{
+					// Roll back only the blob created by this attempt when there is no duplicate owner.
+					await _storage.DeleteAsync(hash, cancellationToken);
+				}
+				catch (Exception cleanupException) when (cleanupException is not OperationCanceledException)
+				{
+					_logger.LogWarning(
+						cleanupException,
+						"Document upload cleanup failed while deleting blob after a database error. ContentHash={ContentHash}",
+						hash);
+				}
+			}
+
+			stopwatch.Stop();
+			_logger.LogError(
+				exception,
+				"Document upload failed due to a database error without duplicate match. ContentHash={ContentHash} FileName={FileName} DurationMs={DurationMs}",
+				hash,
+				command.FileName,
+				stopwatch.Elapsed.TotalMilliseconds);
+			throw;
+		}
+
+		stopwatch.Stop();
+		_activityMonitor.TrackUploadDuplicate(
+			conflictingDocument.Id,
+			command.ContentType,
+			command.Length,
+			stopwatch.Elapsed.TotalMilliseconds);
+		throw new DuplicateDocumentException(conflictingDocument.Id);
+	}
+	catch (Exception exception) when (exception is not OperationCanceledException)
+	{
+		stopwatch.Stop();
+		_logger.LogError(
+			exception,
+			"Document upload failed unexpectedly. ContentHash={ContentHash} FileName={FileName} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
+			hash,
+			command.FileName,
+			command.ContentType,
+			command.Length,
+			stopwatch.Elapsed.TotalMilliseconds);
+		throw;
+	}
+}
+```
+
 <div class="tip" data-title="Duplicate races">
 
 > The final solution rechecks for a conflicting content hash when SQL fails. That avoids deleting a blob that belongs to another request that uploaded the same content at the same time.
@@ -916,9 +1094,9 @@ catch (DbUpdateException exception)
 
 ## Map Errors At The Endpoint
 
-Open `DocumentEndpoints.cs` and wrap the service call:
-
 The service throws domain or dependency exceptions. The endpoint translates those exceptions into HTTP responses that clients can understand and handle consistently.
+
+Open `DocumentEndpoints.cs` and wrap the service call:
 
 ```csharp
 try
@@ -929,36 +1107,74 @@ try
 
 	return Results.Json(document, statusCode: StatusCodes.Status201Created);
 }
-catch (DuplicateDocumentException)
+catch (DuplicateDocumentException exception)
 {
+	logger.LogWarning(exception, "Duplicate document upload rejected.");
 	return Results.Problem(
 		detail: "A document with the same content already exists.",
 		statusCode: StatusCodes.Status409Conflict);
 }
-catch (DbUpdateException)
+catch (DocumentStorageIntegrityException exception)
 {
+	logger.LogError(exception, "Document upload failed because storage integrity verification failed.");
+	return Results.Problem(
+		detail: "The document storage service reported a content integrity failure.",
+		statusCode: StatusCodes.Status502BadGateway);
+}
+catch (RequestFailedException exception)
+{
+	logger.LogError(
+		exception,
+		"Document upload failed because the storage dependency is unavailable. StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode}",
+		exception.Status,
+		exception.ErrorCode);
+	return Results.Problem(
+		detail: "The document storage service is temporarily unavailable.",
+		statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+catch (DbUpdateException exception)
+{
+	logger.LogError(exception, "Document upload failed because the database dependency is unavailable.");
 	return Results.Problem(
 		detail: "The document database is temporarily unavailable.",
 		statusCode: StatusCodes.Status503ServiceUnavailable);
 }
+catch (TimeoutException exception)
+{
+	logger.LogError(exception, "Document upload failed due to a dependency timeout.");
+	return Results.Problem(
+		detail: "A downstream dependency timed out while processing the request.",
+		statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+catch (Exception exception) when (exception is not OperationCanceledException)
+{
+	logger.LogError(exception, "Document upload failed due to an unexpected error.");
+	return Results.Problem(
+		detail: "An unexpected error occurred while processing the document request.",
+		statusCode: StatusCodes.Status500InternalServerError);
+}
 ```
 
-Add storage and unexpected error mappings using the same pattern.
+Logging belongs at the boundary where the API translates the exception into HTTP; the service also logs the lower-level details it owns, such as the content hash and storage status code.
 
 The important idea is consistency. Clients should not need to know whether the failure came from SQL Server, Blob Storage, or the document workflow internals.
 
-## Build The Project
+## Run And Test The Upload
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http` and send the upload request again. The first valid upload should still return `201 Created`.
+
+Then send the same upload a second time to validate duplicate detection.
 
 <div class="task" data-title="Validation">
 
-> Try these scenarios from Swagger UI or the HTTP file:
+> Try these scenarios from `src/http/requests.http`:
 >
-> - missing metadata returns `400 Bad Request`
-> - empty file returns `400 Bad Request`
 > - unsupported content type returns `400 Bad Request`
 > - duplicate content returns `409 Conflict`
 
@@ -968,7 +1184,7 @@ dotnet build src/DocumentAPI/DocumentAPI.csproj
 
 # Lab 6 - Download and Search Functionality
 
-The API can now upload documents reliably. In this lab, you will let clients retrieve stored content and search document metadata.
+The API can now upload documents. In this lab, you will let clients retrieve stored content and search document metadata.
 
 Search and download complete the core document workflow.
 
@@ -995,11 +1211,13 @@ The search criteria and download result contracts are already provided.
 
 ## Implement Download In The Service
 
-Open `DocumentService.cs` and implement `DownloadAsync`:
-
 Download needs both dependencies: SQL tells you which blob to read and what content type to return, while Blob Storage provides the actual stream.
 
+Open `DocumentService.cs` and implement `DownloadAsync`:
+
 ```csharp
+var stopwatch = Stopwatch.StartNew();
+
 var document = await _resiliencePipeline.ExecuteAsync(
 	async token => await _dbContext.Documents
 		.AsNoTracking()
@@ -1024,11 +1242,54 @@ _activityMonitor.TrackDownloadSucceeded(document.Id, document.ContentType, docum
 return new DocumentContentResult(document.FileName, document.ContentType, stream);
 ```
 
+Keep the same structure as upload: start the stopwatch, wrap the dependency calls in `try`, log dependency failures, and let the endpoint translate them into HTTP responses.
+
+```csharp
+var stopwatch = Stopwatch.StartNew();
+
+try
+{
+	// Code you have done previously: Query metadata, open the blob stream, track success or not found, then return the result.
+}
+catch (DocumentStorageIntegrityException exception)
+{
+	stopwatch.Stop();
+	_logger.LogError(
+		exception,
+		"Document download failed due to storage integrity validation. DocumentId={DocumentId} DurationMs={DurationMs}",
+		id,
+		stopwatch.Elapsed.TotalMilliseconds);
+	throw;
+}
+catch (RequestFailedException exception)
+{
+	stopwatch.Stop();
+	_logger.LogError(
+		exception,
+		"Document download failed due to storage dependency error. DocumentId={DocumentId} StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode} DurationMs={DurationMs}",
+		id,
+		exception.Status,
+		exception.ErrorCode,
+		stopwatch.Elapsed.TotalMilliseconds);
+	throw;
+}
+catch (Exception exception) when (exception is not OperationCanceledException)
+{
+	stopwatch.Stop();
+	_logger.LogError(
+		exception,
+		"Document download failed unexpectedly. DocumentId={DocumentId} DurationMs={DurationMs}",
+		id,
+		stopwatch.Elapsed.TotalMilliseconds);
+	throw;
+}
+```
+
 ## Implement Search In The Service
 
-Implement the metadata query in `QueryDocumentsAsync`:
-
 The query starts with filters that SQL Server can handle efficiently. After loading the narrowed set, the service applies tag and free-text checks in memory to keep the lab code approachable.
+
+Implement the metadata query in `QueryDocumentsAsync`:
 
 ```csharp
 var query = _dbContext.Documents.AsNoTracking();
@@ -1067,6 +1328,37 @@ if (!string.IsNullOrWhiteSpace(criteria.Query))
 return filtered.Select(ToDocumentDto).ToArray();
 ```
 
+Then update `SearchAsync` so the query is executed through the resilience pipeline, tracked by the activity monitor, and logged when a dependency fails:
+
+```csharp
+var stopwatch = Stopwatch.StartNew();
+
+try
+{
+	var documents = await _resiliencePipeline.ExecuteAsync(
+		async token => await QueryDocumentsAsync(criteria, token),
+		cancellationToken);
+
+	_activityMonitor.TrackSearch(criteria, documents.Count, cacheHit: false);
+	return documents;
+}
+catch (Exception exception) when (exception is not OperationCanceledException)
+{
+	stopwatch.Stop();
+	_logger.LogError(
+		exception,
+		"Document search failed. DurationMs={DurationMs} HasQuery={HasQuery} HasTitleFilter={HasTitleFilter} HasTagFilter={HasTagFilter} HasContentTypeFilter={HasContentTypeFilter}",
+		stopwatch.Elapsed.TotalMilliseconds,
+		!string.IsNullOrWhiteSpace(criteria.Query),
+		!string.IsNullOrWhiteSpace(criteria.Title),
+		!string.IsNullOrWhiteSpace(criteria.Tag),
+		!string.IsNullOrWhiteSpace(criteria.ContentType));
+	throw;
+}
+```
+
+The `cacheHit` value is always `false` in this lab. The next lab will add the cache and replace this direct query with cache-aware behavior.
+
 ## Expose The Endpoints
 
 Open `DocumentEndpoints.cs` and implement the search handler:
@@ -1079,6 +1371,42 @@ var documents = await documentService.SearchAsync(
 	cancellationToken);
 
 return Results.Ok(documents);
+```
+
+Wrap the service call so dependency failures become predictable API responses:
+
+```csharp
+var logger = loggerFactory.CreateLogger("DocumentEndpoints");
+
+try
+{
+	var documents = await documentService.SearchAsync(
+		new DocumentSearchCriteria(query, title, tag, contentType),
+		cancellationToken);
+
+	return Results.Ok(documents);
+}
+catch (DbUpdateException exception)
+{
+	logger.LogError(exception, "Document search failed because the database dependency is unavailable.");
+	return Results.Problem(
+		detail: "The document database is temporarily unavailable.",
+		statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+catch (TimeoutException exception)
+{
+	logger.LogError(exception, "Document search failed due to a dependency timeout.");
+	return Results.Problem(
+		detail: "A downstream dependency timed out while processing the request.",
+		statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+catch (Exception exception) when (exception is not OperationCanceledException)
+{
+	logger.LogError(exception, "Document search failed due to an unexpected error.");
+	return Results.Problem(
+		detail: "An unexpected error occurred while processing the document request.",
+		statusCode: StatusCodes.Status500InternalServerError);
+}
 ```
 
 Then implement download:
@@ -1098,15 +1426,77 @@ if (document is null)
 return Results.File(document.Content, document.ContentType, document.FileName, enableRangeProcessing: true);
 ```
 
-## Build The Project
+Use the same boundary pattern for download errors:
+
+```csharp
+var logger = loggerFactory.CreateLogger("DocumentEndpoints");
+
+try
+{
+	var document = await documentService.DownloadAsync(id, cancellationToken);
+
+	if (document is null)
+	{
+		return Results.Problem(
+			detail: "The requested document was not found.",
+			statusCode: StatusCodes.Status404NotFound);
+	}
+
+	return Results.File(document.Content, document.ContentType, document.FileName, enableRangeProcessing: true);
+}
+catch (RequestFailedException exception)
+{
+	logger.LogError(
+		exception,
+		"Document download failed because the storage dependency is unavailable. StorageStatus={StorageStatus} StorageErrorCode={StorageErrorCode}",
+		exception.Status,
+		exception.ErrorCode);
+	return Results.Problem(
+		detail: "The document storage service is temporarily unavailable.",
+		statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+catch (DbUpdateException exception)
+{
+	logger.LogError(exception, "Document download failed because the database dependency is unavailable.");
+	return Results.Problem(
+		detail: "The document database is temporarily unavailable.",
+		statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+catch (TimeoutException exception)
+{
+	logger.LogError(exception, "Document download failed due to a dependency timeout.");
+	return Results.Problem(
+		detail: "A downstream dependency timed out while processing the request.",
+		statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+catch (Exception exception) when (exception is not OperationCanceledException)
+{
+	logger.LogError(exception, "Document download failed due to an unexpected error.");
+	return Results.Problem(
+		detail: "An unexpected error occurred while processing the document request.",
+		statusCode: StatusCodes.Status500InternalServerError);
+}
+```
+
+## Run And Test The Workflow
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http` and run the document workflow requests in order:
+
+1. Upload a document.
+2. Search documents with the `Search documents` request.
+3. Download the uploaded document with the `Download the last uploaded document` request.
+
+The download request uses the id returned by the upload request, so send the upload request first.
 
 <div class="task" data-title="Validation">
 
-> Upload a document, search for it, then download its content.
+> Upload a document, search for it, then download its content from `src/http/requests.http`.
 >
 > Also try downloading an unknown id and confirm that the API returns `404 Not Found`.
 
@@ -1116,11 +1506,9 @@ dotnet build src/DocumentAPI/DocumentAPI.csproj
 
 # Lab 7 - Search Caching
 
-Search is often called repeatedly with the same filters. In this lab, you will add in-memory caching to reduce repeated database work while keeping the API contract unchanged.
+Search is often called repeatedly with the same filters. In this lab, you will add in-memory caching to reduce repeated database work while keeping the API contract unchanged. In a real world scenario, the cache can be handled by an API Gateway in front of the API, but this lab focuses on the caching behavior itself.
 
 The important part is not just caching; it is caching safely and invalidating results when new documents are uploaded.
-
-The API response should not change when caching is added. You are improving performance behind the same contract, which is a useful pattern for production APIs.
 
 ## What You Will Learn
 
@@ -1136,94 +1524,78 @@ In this lab, you will:
 
 You only need to edit these files:
 
-- `src/DocumentAPI/Program.cs`
 - `src/DocumentAPI/Services/Documents/DocumentService.cs`
 
 The cache options and shared cache version service are already provided.
 
-## Register Memory Cache
-
-Open `Program.cs` and register the memory cache:
-
-This adds the built-in in-memory cache service to the application container. It is enough for a single API instance and keeps the lab focused on caching behavior.
-
-```csharp
-builder.Services.AddMemoryCache();
-```
-
 ## Add Cache Around Search
 
-Open `DocumentService.cs` and update `SearchAsync`.
+Caching belongs around the service query, not inside the endpoint. This way every caller benefits from the same behavior, even if another endpoint or background process reuses the service later. It's also easier to test the caching behavior in isolation.
 
-Caching belongs around the service query, not inside the endpoint. This way every caller benefits from the same behavior, even if another endpoint or background process reuses the service later.
-
-Create the key and check the cache:
+Open `DocumentService.cs` and update the entire `SearchAsync` with the code below:
 
 ```csharp
-var cacheKey = CreateCacheKey(_cacheVersion.Current, criteria);
+var stopwatch = Stopwatch.StartNew();
 
-var cacheHit = _cache.TryGetValue(cacheKey, out IReadOnlyList<DocumentDto>? cachedDocuments)
-	&& cachedDocuments is not null;
-IReadOnlyList<DocumentDto> documents;
-
-if (cacheHit)
+try
 {
-	documents = cachedDocuments!;
+	var cacheKey = CreateCacheKey(_cacheVersion.Current, criteria);
+
+	var cacheHit = _cache.TryGetValue(cacheKey, out IReadOnlyList<DocumentDto>? cachedDocuments) && cachedDocuments is not null;
+	IReadOnlyList<DocumentDto> documents;
+
+	if (cacheHit)
+	{
+		documents = cachedDocuments!;
+	}
+	else
+	{
+		documents = await _resiliencePipeline.ExecuteAsync(
+			async token => await QueryDocumentsAsync(criteria, token),
+			cancellationToken);
+		_cache.Set(
+			cacheKey,
+			documents,
+			new MemoryCacheEntryOptions
+			{
+				AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.Search.CacheTtlSeconds)),
+			});
+	}
+
+	_activityMonitor.TrackSearch(criteria, documents.Count, cacheHit);
+
+	return documents;
+	// </lab>
 }
-else
+catch (Exception exception) when (exception is not OperationCanceledException)
 {
-	documents = await _resiliencePipeline.ExecuteAsync(
-		async token => await QueryDocumentsAsync(criteria, token),
-		cancellationToken);
-
-	_cache.Set(
-		cacheKey,
-		documents,
-		new MemoryCacheEntryOptions
-		{
-			AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.Search.CacheTtlSeconds)),
-		});
-}
-
-_activityMonitor.TrackSearch(criteria, documents.Count, cacheHit);
-return documents;
-```
-
-## Create A Deterministic Cache Key
-
-Add the helper methods:
-
-The key must be deterministic: the same criteria should always produce the same key, even if the user adds extra spaces or changes casing.
-
-```csharp
-private static string CreateCacheKey(int cacheVersion, DocumentSearchCriteria criteria)
-{
-	return string.Join(
-		"::",
-		"documents-search",
-		cacheVersion,
-		NormalizeCacheSegment(criteria.Query),
-		NormalizeCacheSegment(criteria.Title),
-		NormalizeCacheSegment(criteria.Tag),
-		NormalizeCacheSegment(criteria.ContentType));
-}
-
-private static string NormalizeCacheSegment(string? value)
-{
-	return string.IsNullOrWhiteSpace(value)
-		? string.Empty
-		: value.Trim().ToLowerInvariant();
+	stopwatch.Stop();
+	_logger.LogError(
+		exception,
+		"Document search failed. DurationMs={DurationMs} HasQuery={HasQuery} HasTitleFilter={HasTitleFilter} HasTagFilter={HasTagFilter} HasContentTypeFilter={HasContentTypeFilter}",
+		stopwatch.Elapsed.TotalMilliseconds,
+		!string.IsNullOrWhiteSpace(criteria.Query),
+		!string.IsNullOrWhiteSpace(criteria.Title),
+		!string.IsNullOrWhiteSpace(criteria.Tag),
+		!string.IsNullOrWhiteSpace(criteria.ContentType));
+	throw;
 }
 ```
 
-The shared cache version is part of the key. Incrementing it invalidates all previous search entries without having to enumerate cache keys.
+As you can see the cache key is created from the search criteria and shared cache version. The service first checks for a cache hit and returns cached results if they exist. If not, it executes the query, stores the results in cache with a TTL, and returns them.
+
+The shared cache version is part of the key as you can see in the `CreateCacheKey` method. Incrementing it invalidates all previous search entries without having to enumerate cache keys.
 
 ## Invalidate After Upload
 
-After a successful upload and database save, increment the cache version:
+After a successful upload and database save, increment the cache version inside the `UploadAsync` method:
 
 ```csharp
+// await _resiliencePipeline.ExecuteAsync(...);
+
 _cacheVersion.Increment();
+
+// var documentDto = ToDocumentDto(document);
 ```
 
 <div class="tip" data-title="Why not remove cache entries one by one?">
@@ -1232,17 +1604,24 @@ _cacheVersion.Increment();
 
 </div>
 
-## Build The Project
+## Run And Test Search Caching
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http`, upload a document, then send the `Search documents` request twice with the same query.
+
+After that, upload another document and send the same search request again. The upload should invalidate previous search entries by incrementing the shared cache version.
 
 <div class="task" data-title="Validation">
 
-> Run the same search twice and confirm that the second call uses the cached path.
+> Run the same search twice from `src/http/requests.http` and confirm that the second call uses the cached path.
 >
 > Upload a new document, search again, and confirm the cache is invalidated.
+> You can check the time of the response to confirm caching behavior.
 
 </div>
 
@@ -1271,18 +1650,27 @@ In this lab, you will:
 
 You only need to edit these files:
 
+- `src/DocumentAPI/Services/DependencyInjection.cs`
 - `src/DocumentAPI/Services/Health/DocumentHealthStatusService.cs`
 - `src/DocumentAPI/Endpoints/HealthEndpoints.cs`
 
 The health contracts, response models, and DI registration are already provided.
 
-## Evaluate Dependency Health
+## Register The Health Service
 
-Open `DocumentHealthStatusService.cs` and implement `GetStatusAsync`:
+Open `DependencyInjection.cs` and replace the health placeholder with the real implementation:
+
+```csharp
+services.AddScoped<IHealthStatusService, DocumentHealthStatusService>();
+```
+
+## Evaluate Dependency Health
 
 A health endpoint should check the dependencies that make the API useful. Here, the service is healthy only when both SQL metadata and Blob content access are available.
 
 The service includes a small in-memory cache around connectivity probes. This keeps `/health` inexpensive while still refreshing the dependency state periodically when the endpoint is called.
+
+Open `DocumentHealthStatusService.cs` and implement `GetStatusAsync`:
 
 ```csharp
 var storageHealthy = await GetCachedConnectivityAsync(
@@ -1322,7 +1710,7 @@ return new HealthStateResult(HealthStatus.Unhealthy, false, checks);
 
 ## Map Health To HTTP
 
-Open `HealthEndpoints.cs` and implement the response mapping:
+Open `HealthEndpoints.cs` and implement the response mapping inside the `GetHealthAsync` method:
 
 The response has two layers: an HTTP status for infrastructure tools and a body that gives humans or dashboards more detail.
 
@@ -1367,17 +1755,22 @@ return Results.Ok(new HealthyOrDegradedStatus
 
 </div>
 
-## Build The Project
+## Run And Test Health
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http` and send the `Health` request.
 
 <div class="task" data-title="Validation">
 
-> Call `/health` and confirm that it returns a status value.
+> Call `/health` from `src/http/requests.http` and confirm that it returns a status value.
 >
 > If one dependency is unavailable, the response should be `Degraded` and include dependency details.
+> Tips: To be able to see the `Degraded` status, you can temporarily change a network settings, for instance by turning off the network access to the storage account if it's public. The health check will refresh every five minutes.
 
 </div>
 
@@ -1387,9 +1780,9 @@ dotnet build src/DocumentAPI/DocumentAPI.csproj
 
 You now have the main API behaviors in place. In this lab, you will add automated tests so the upload, search, download, duplicate detection, and edge cases can be validated repeatedly.
 
-The test infrastructure is already prepared. Your focus is the test intent, not the boilerplate.
-
 Each test should explain one behavior in code: what is arranged, what action happens, and what result proves the behavior is correct.
+
+This lab focuses on `DocumentService` because it contains most of the document workflow rules. Endpoint tests are valuable too, but service tests are faster, easier to debug, and precise enough to protect the business behavior you implemented in the previous labs.
 
 ## What You Will Learn
 
@@ -1397,6 +1790,7 @@ In this lab, you will:
 
 - Test `DocumentService` with EF Core InMemory.
 - Use a fake document storage service.
+- Verify search cache behavior.
 - Verify upload happy path behavior.
 - Verify duplicate detection.
 - Verify missing and existing downloads.
@@ -1407,15 +1801,75 @@ In this lab, you will:
 You only need to edit these files:
 
 - `tests/DocumentAPI.Tests/DocumentServiceTests.cs`
-- `tests/DocumentAPI.Tests/DocumentApiEndpointsTests.cs`
 
-The factory, SQL Server fixture, fake storage, packages, and internal visibility setup are already provided.
+The fake storage, package references, helper methods, and internal visibility setup are already provided. You will fill in the tests that use them.
+
+## Understand The Test Helpers
+
+The tests rely on a few helper types in the same file. You do not need to rewrite them, but it helps to understand why they exist.
+
+`CreateDbContext` creates a fresh Entity Framework Core InMemory database for every test. The unique database name keeps tests isolated, so one test cannot accidentally reuse rows from another test.
+
+`CreateService` builds a `DocumentService` with real workflow dependencies where useful and fake dependencies where external systems would make the test slow or fragile:
+
+- `DocumentDbContext` is real but stored in memory for testing purposes, so Entity Framework queries and persistence are exercised.
+- `RecordingStorage` replaces Blob Storage and records save/open behavior in memory.
+- `RecordingActivityMonitor` replaces Application Insights and records telemetry calls in lists.
+- `MemoryCache` and `DocumentSearchCacheVersion` are real, so cache behavior is actually tested.
+- `ResiliencePipelineBuilder().Build()` creates an empty pipeline for tests; retry behavior itself is covered by configuration, while these tests focus on document workflow behavior.
+
+`RecordingStorage` and `RecordingActivityMonitor` are test doubles. They are deliberately simple: they capture observable behavior without making assertions themselves. The test methods stay responsible for deciding what should be true.
+
+## Test Search Cache Behavior
+
+The cache test proves that repeated searches return the same result while reporting the second call as a cache hit. It uses Entity Framework Core InMemory for metadata and the recording activity monitor to inspect the business signal.
+
+The setup creates one document directly in the database because this test is not about upload. It is about search behavior. By seeding only the metadata needed for the query, the test stays focused on the cache path.
+
+Open `DocumentServiceTests.cs` and implement the `SearchUsesCacheBetweenCalls` method first:
+
+```csharp
+await using var dbContext = CreateDbContext();
+dbContext.Documents.Add(new Document
+{
+	Id = "doc-1",
+	FileName = "workshop-notes.txt",
+	ContentType = "text/plain",
+	Size = 11,
+	Title = "Workshop Notes",
+	Description = "Minimal API lab",
+	Source = "unit-test",
+	Tags = ["lab", "notes"],
+	ContentHash = Encoding.UTF8.GetBytes("hello world").Md5ToHexString(),
+	CreatedUtc = DateTimeOffset.UtcNow,
+});
+await dbContext.SaveChangesAsync();
+
+var storage = new RecordingStorage();
+var activityMonitor = new RecordingActivityMonitor();
+var service = CreateService(dbContext, storage, activityMonitor);
+
+var criteria = new DocumentSearchCriteria("workshop", null, null, "text/plain");
+
+var firstResult = await service.SearchAsync(criteria, CancellationToken.None);
+var secondResult = await service.SearchAsync(criteria, CancellationToken.None);
+
+Assert.Single(firstResult);
+Assert.Single(secondResult);
+Assert.Equal(2, activityMonitor.SearchEvents.Count);
+Assert.False(activityMonitor.SearchEvents[0].CacheHit);
+Assert.True(activityMonitor.SearchEvents[1].CacheHit);
+```
+
+The two result assertions prove that caching does not change the API result. The activity monitor assertions prove the internal behavior changed: the first call queried normally, while the second call reused the cached result.
 
 ## Test Upload Happy Path
 
-Open `DocumentServiceTests.cs` and implement the upload success test:
+Open `DocumentServiceTests.cs` and implement the `UploadPersistsDocumentAndTracksSuccess` test:
 
-This test stays close to the service boundary. It uses a real EF Core context, but replaces Blob Storage and telemetry with simple in-memory doubles.
+This test stays close to the service boundary. It uses a real Entity Framework Core context, but replaces Blob Storage and telemetry with simple in-memory doubles.
+
+The command represents the same data the endpoint would pass after parsing multipart form data. The test intentionally calls the service directly so a failure points to the upload workflow, not to HTTP parsing, routing, or authentication.
 
 ```csharp
 await using var dbContext = CreateDbContext();
@@ -1446,91 +1900,116 @@ Assert.Equal(1, storage.SaveCallCount);
 Assert.Single(activityMonitor.UploadSucceededDocuments);
 ```
 
+These assertions cover the three important outcomes of a successful upload: metadata was persisted, the binary content was saved once, and the business telemetry hook was called. Together, they protect the full happy path without needing a real Azure Storage account.
+
 ## Test Duplicate Content
 
 Add a document with the same hash, then upload the same bytes again:
 
-This test protects the rule introduced in the robustness lab. If someone changes upload later, the test will catch accidental duplicate storage.
+This test protects the rule introduced in the robustness lab. If someone changes upload later, the test will catch accidental duplicate storage. Update the `UploadWithDuplicateContentThrowsAndTracksDuplicate` test with the following code at the end:
+
+The test inserts the existing row manually with the same MD5 content hash that the upload command will produce. That lets the service exercise its duplicate check before any blob write happens.
 
 ```csharp
+await using var dbContext = CreateDbContext();
+
 var duplicateBytes = Encoding.UTF8.GetBytes("same-content");
-dbContext.Documents.Add(new Document
-{
-	Id = "existing-doc",
-	FileName = "existing.txt",
-	ContentType = "text/plain",
-	Size = duplicateBytes.Length,
-	ContentHash = duplicateBytes.Md5ToHexString(),
-	CreatedUtc = DateTimeOffset.UtcNow,
-});
+dbContext.Documents.Add(
+	new Document
+	{
+		Id = "existing-doc",
+		FileName = "existing.txt",
+		ContentType = "text/plain",
+		Size = duplicateBytes.Length,
+		ContentHash = duplicateBytes.Md5ToHexString(),
+		CreatedUtc = DateTimeOffset.UtcNow,
+	});
 await dbContext.SaveChangesAsync();
 
-var exception = await Assert.ThrowsAsync<DuplicateDocumentException>(
-	() => service.UploadAsync(command, CancellationToken.None));
+var storage = new RecordingStorage();
+var activityMonitor = new RecordingActivityMonitor();
+var service = CreateService(dbContext, storage, activityMonitor);
+
+var command = new DocumentUploadCommand(
+	"incoming.txt",
+	"text/plain",
+	new MemoryStream(duplicateBytes),
+	duplicateBytes.Length,
+	new DocumentMetadataDto());
+
+var exception = await Assert.ThrowsAsync<DuplicateDocumentException>(() => service.UploadAsync(command, CancellationToken.None));
 
 Assert.Equal("existing-doc", exception.ExistingDocumentId);
 Assert.Equal(0, storage.SaveCallCount);
+Assert.Single(activityMonitor.UploadDuplicateDocumentIds);
+Assert.Equal("existing-doc", activityMonitor.UploadDuplicateDocumentIds[0]);
 ```
+
+The exception assertion proves callers get the domain error used by the endpoint to return `409 Conflict`. The `SaveCallCount` assertion is just as important: duplicates must be rejected before writing the same bytes to storage again.
 
 ## Test Download Behavior
 
 For a missing document:
 
-Download has two important branches: the document exists or it does not. Testing both keeps the public `404` behavior reliable.
+Download has two important branches: the document exists or it does not. Testing both keeps the public `404` behavior reliable. Update the `DownloadReturnsNullWhenDocumentIsMissing` test with the following code at the end:
+
+For the missing case, the database starts empty. The service should return `null` and track a not-found event instead of calling storage or throwing an exception.
 
 ```csharp
+await using var dbContext = CreateDbContext();
+var storage = new RecordingStorage();
+var activityMonitor = new RecordingActivityMonitor();
+var service = CreateService(dbContext, storage, activityMonitor);
+
 var result = await service.DownloadAsync("missing", CancellationToken.None);
 
 Assert.Null(result);
 Assert.Single(activityMonitor.DownloadNotFoundDocumentIds);
+Assert.Equal("missing", activityMonitor.DownloadNotFoundDocumentIds[0]);
 ```
 
-For an existing document, seed storage and metadata, then read the returned stream:
+This is the service-level behavior that the endpoint later translates into `404 Not Found`.
+
+For an existing document seed storage and metadata, then read the returned stream, update the `DownloadReturnsContentWhenDocumentExists` test:
+
+For the success case, both sides of the workflow must exist: SQL metadata points to a content hash, and fake storage contains bytes under that same hash. This mirrors the real download path without calling Azure Blob Storage.
 
 ```csharp
+await using var dbContext = CreateDbContext();
+var storage = new RecordingStorage();
+var activityMonitor = new RecordingActivityMonitor();
+var service = CreateService(dbContext, storage, activityMonitor);
+
 var content = Encoding.UTF8.GetBytes("stored-content");
 var contentHash = content.Md5ToHexString();
 storage.Seed(contentHash, content);
 
-dbContext.Documents.Add(new Document
-{
-	Id = "doc-42",
-	FileName = "doc-42.txt",
-	ContentType = "text/plain",
-	Size = content.Length,
-	ContentHash = contentHash,
-	CreatedUtc = DateTimeOffset.UtcNow,
-});
+dbContext.Documents.Add(
+	new Document
+	{
+		Id = "doc-42",
+		FileName = "doc-42.txt",
+		ContentType = "text/plain",
+		Size = content.Length,
+		ContentHash = contentHash,
+		CreatedUtc = DateTimeOffset.UtcNow,
+	});
 await dbContext.SaveChangesAsync();
 
 var result = await service.DownloadAsync("doc-42", CancellationToken.None);
 
 Assert.NotNull(result);
+using var reader = new StreamReader(result!.Content);
+var body = await reader.ReadToEndAsync();
+
+Assert.Equal("stored-content", body);
+Assert.Single(activityMonitor.DownloadSucceededDocumentIds);
+Assert.Equal("doc-42", activityMonitor.DownloadSucceededDocumentIds[0]);
+Assert.Empty(activityMonitor.DownloadNotFoundDocumentIds);
 ```
 
-## Test HTTP Endpoints
+Reading the stream verifies that the returned content is not just non-null; it is the exact bytes saved in storage. The activity monitor assertions prove that the success path, not the not-found path, was recorded.
 
-Open `DocumentApiEndpointsTests.cs` and add an integration test for the round trip:
-
-Endpoint tests validate the wiring that unit tests cannot see: routing, multipart parsing, authentication headers, model serialization, and status codes.
-
-```csharp
-using var factory = new DocumentApiFactory(_sqlServer.ConnectionString);
-using var client = factory.CreateClient();
-client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", factory.CreateBearerToken());
-
-using var uploadContent = CreateMultipartForm(
-	fileName: "notes.txt",
-	contentType: "text/plain",
-	body: "hello world",
-	metadata: new DocumentMetadataDto { Title = "Workshop Notes" });
-
-var uploadResponse = await client.PostAsync("/documents?api-version=1.0", uploadContent);
-
-Assert.Equal(HttpStatusCode.Created, uploadResponse.StatusCode);
-```
-
-Use the same pattern for missing metadata, duplicate upload, and unknown download id.
 
 <div class="tip" data-title="Use Copilot for edge cases">
 
@@ -1540,6 +2019,22 @@ Use the same pattern for missing metadata, duplicate upload, and unknown downloa
 
 ## Run The Tests
 
+You do not need to start the API project to run these tests. Visual Studio can discover and run them directly from the test project.
+
+From Visual Studio:
+
+1. Build the solution once so Visual Studio can discover the tests.
+2. Open **Test > Test Explorer** from the top menu.
+3. In Test Explorer, expand `DocumentAPI.Tests`.
+4. Select **Run All Tests** to run the full test project.
+5. To focus on one scenario, right-click a single test such as `UploadPersistsDocumentAndTracksSuccess` and select **Run**.
+
+When a test fails, select it in Test Explorer to inspect the assertion message and stack trace. For this lab, most failures point either to `DocumentServiceTests.cs` or to one of the workflow methods in `DocumentService.cs`.
+
+![Visual Studio Test Explorer showing test results](./assets/test-explorer.png)
+
+You can also run the same test project from the command line:
+
 ```bash
 dotnet test tests/DocumentAPI.Tests/DocumentAPI.Tests.csproj
 ```
@@ -1548,7 +2043,7 @@ dotnet test tests/DocumentAPI.Tests/DocumentAPI.Tests.csproj
 
 > The test project should pass consistently.
 >
-> If this is the first run, SQL Server Testcontainers may take longer while the container image is prepared.
+> If you run the full test project, the first run may take longer while SQL Server Testcontainers prepares the container image for integration tests.
 
 </div>
 
@@ -1585,7 +2080,7 @@ Swagger versioning helpers are already provided in the `OpenApi` folder.
 
 Open `Program.cs` and add API versioning services:
 
-Versioning makes the contract explicit. Instead of guessing which behavior a client expects, the API requires the caller to say which version it is using.
+Versioning makes the contract explicit. Instead of guessing which behavior a client expects, the API requires the caller to say which version it is using. Search for `TODO Lab 10` to find the right place to add this code:
 
 ```csharp
 builder.Services
@@ -1604,6 +2099,7 @@ builder.Services
 Then register the Swagger configuration helpers:
 
 ```csharp
+// After: builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 ```
 
@@ -1613,11 +2109,13 @@ Inside `AddSwaggerGen`, add the operation filter:
 options.OperationFilter<SwaggerDefaultValues>();
 ```
 
+This will make sure the generated Swagger documents reflect the API versioning configuration, for instance by adding `api-version` as a required query parameter.
+
 ## Create A Versioned Documents Group
 
-Open `DocumentEndpoints.cs` and replace the simple route group with a versioned API builder:
-
 Grouping the document routes keeps versioning in one place. Future versions can add a new group without touching `/health` or unrelated operational endpoints.
+
+Open `DocumentEndpoints.cs` and replace the simple route group with a versioned API builder:
 
 ```csharp
 var documentGroup = endpoints.NewVersionedApi("Documents");
@@ -1636,9 +2134,10 @@ All document endpoints mapped on `v1Group` now require a supported API version.
 
 ## Expose Swagger Per Version
 
-Still in `Program.cs`, resolve the version provider in the development block:
 
 Swagger should show the same versioned contract that clients use at runtime. When future versions appear, each one can have its own generated document.
+
+Still in `Program.cs`, resolve the version provider in the `if (app.Environment.IsDevelopment())` block:
 
 ```csharp
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
@@ -1660,11 +2159,15 @@ app.UseSwaggerUI(options =>
 });
 ```
 
-## Build And Try It
+## Run And Test Versioning
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http` and make sure `@apiVersion` is set to `1`.
 
 Call a versioned endpoint:
 
@@ -1672,11 +2175,12 @@ Call a versioned endpoint:
 /documents/search?api-version=1.0
 ```
 
-Then try the same endpoint without `api-version`.
+Then temporarily remove `?api-version={{apiVersion}}` from one document request and send it again, you will get
+a 404 Not Found or change the value of the `apiVersion` parameter to `2` for instance and you will get a 400 Bad Request with a message about missing API version. This confirms that the API now requires explicit version selection.
 
 <div class="task" data-title="Validation">
 
-> Document endpoints should require `api-version=1.0`.
+> Document endpoints should require `api-version=1.0` or `api-version=1`.
 >
 > `/health` should still be callable without an API version.
 
@@ -1717,6 +2221,8 @@ Open `Program.cs` and add JWT bearer authentication:
 
 JWT bearer authentication lets the API validate a signed token without calling an external service for every request. The issuer, audience, and signing key define which tokens this API trusts.
 
+Search for "TODO Lab 11: Register JWT bearer authentication and configure token validation" to find the right place to add this code:
+
 ```csharp
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -1735,13 +2241,6 @@ builder.Services
 			ClockSkew = TimeSpan.FromMinutes(1),
 		};
 	});
-```
-
-Then enable the middleware before endpoint execution:
-
-```csharp
-app.UseAuthentication();
-app.UseAuthorization();
 ```
 
 ## Return A Clean 401 Response
@@ -1768,6 +2267,15 @@ options.Events = new JwtBearerEvents
 };
 ```
 
+## Enable Authentication Middleware
+
+Then enable the middleware before endpoint execution (`app.MapHealthEndpoints();`):
+
+```csharp
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
 ## Protect Document Endpoints
 
 Open `DocumentEndpoints.cs` and require authorization on the documents group:
@@ -1781,13 +2289,11 @@ var v1Group = documentGroup.MapGroup("/documents")
 	.HasApiVersion(new ApiVersion(1));
 ```
 
-Do not add authorization to `/health`.
+If you open `HealthEndpoints.cs` you will see that the health endpoints has the `.AllowAnonymous()` configuration which allows them to be called without authentication.
 
 ## Add Bearer Support To Swagger
 
-Inside `AddSwaggerGen`, add a bearer security definition:
-
-This does not authenticate anyone by itself. It only teaches Swagger UI how to send an `Authorization: Bearer ...` header when you test protected endpoints.
+Go back to `Program.cs` inside `AddSwaggerGen`, add a bearer security definition at beginning of the configuration:
 
 ```csharp
 var bearerSecurityScheme = new OpenApiSecurityScheme
@@ -1803,13 +2309,30 @@ var bearerSecurityScheme = new OpenApiSecurityScheme
 options.AddSecurityDefinition("Bearer", bearerSecurityScheme);
 ```
 
-## Build And Try It
+This does not authenticate anyone by itself. It only teaches Swagger UI how to send an `Authorization: Bearer ...` header when you test protected endpoints.
 
-```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+Then apply that scheme to the generated operations:
+
+```csharp
+options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+{
+	[new OpenApiSecuritySchemeReference("Bearer", hostDocument: document, externalResource: null)] = [],
+});
 ```
 
-Call the search endpoint without a token:
+Without the requirement, Swagger UI knows what a bearer token is, but the operations are not annotated as requiring it.
+
+## Run And Test Authentication
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
+
+```bash
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
+```
+
+Open `src/http/requests.http`. First send the `Health` request to confirm the API is running.
+
+Then call the search endpoint without a token:
 
 ```txt
 /documents/search?api-version=1.0
@@ -1817,9 +2340,58 @@ Call the search endpoint without a token:
 
 It should return `401 Unauthorized`.
 
+To test the authenticated path, generate a valid JWT :
+
+
+1. Open https://jwt.io/
+2. In the Decoded section, update the Header.
+3. Use this Header:
+```json
+{
+	"alg": "HS256",
+	"typ": "JWT"
+}
+```
+
+4. Use this Payload template:
+
+```json
+{
+	"iss": "DocumentAPI",
+	"aud": "DocumentAPIClient",
+	"sub": "lab-user",
+	"name": "DocumentAPI User",
+	"iat": 1735689600,
+	"nbf": 1735689600,
+	"exp": 2145916800,
+	"jti": "lab-long-lived-token-001"
+}
+```
+
+    Notes:
+    - iat/nbf = 1735689600 (2025-01-01T00:00:00Z)
+    - exp = 2145916800 (2038-01-01T00:00:00Z)
+    - This is intentionally long-lived for testing purposes.
+
+5. In Verify Signature:
+- Set the secret to: `document-api-signing-key-to-randomly-generate`
+- Make sure Secret base64 encoded is disabled
+
+6. Copy the token from the Encoded section.
+
+Paste it into the `@token` variable near the top of `src/http/requests.http`:
+
+```http
+@token=PASTE_VALID_JWT_HERE
+```
+
+Then uncomment the `Authorization: Bearer {{token}}` for each document request and send it again. With a valid token, the request should pass authentication and continue to the normal document endpoint behavior.
+
+Add back the `Authorization: Bearer {{token}}` header on the document request and send it again. With a valid token, the request should pass authentication and continue to the normal document endpoint behavior.
+
 <div class="task" data-title="Validation">
 
-> Confirm that `/documents` requires a token.
+> Confirm that `/documents` requests in `src/http/requests.http` require a token.
 >
 > Confirm that `/health` still works anonymously.
 
@@ -1893,7 +2465,7 @@ private static string ResolveCorrelationId(IHeaderDictionary headers)
 
 Open `Program.cs` and add HTTP logging:
 
-HTTP logs answer the operational questions first: which route was called, how long it took, and what status code came back. The correlation id makes those entries easy to join with deeper telemetry.
+HTTP logs answer the operational questions first: which route was called, how long it took, and what status code came back. The correlation id makes those entries easy to join with deeper telemetry. Search for `TODO Lab 12: Register HTTP logging and include the correlation id header.` to find the right place to add this code:
 
 ```csharp
 builder.Services.AddHttpLogging(options =>
@@ -1907,11 +2479,19 @@ builder.Services.AddHttpLogging(options =>
 });
 ```
 
-Register Application Insights:
-
-Application Insights receives the platform telemetry, while the telemetry initializer enriches it with request context such as the correlation id.
+Application Insights receives the platform telemetry, while the telemetry initializer enriches it with request context such as the correlation id. Just after `builder.Services.AddApplicationInsightsTelemetry();` Register Application Insights:
 
 ```csharp
+var applicationInsightsOptions = documentApiOptions.ApplicationInsights;
+var applicationInsightsConnectionString = applicationInsightsOptions.Enabled
+	? ResolveApplicationInsightsConnectionString(builder.Configuration, applicationInsightsOptions)
+	: null;
+
+if (applicationInsightsOptions.Enabled && string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
+{
+	throw new InvalidOperationException("Application Insights is enabled but no connection string was configured.");
+}
+
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ITelemetryInitializer, DocumentApiTelemetryInitializer>();
 builder.Services.AddApplicationInsightsTelemetry(options =>
@@ -1921,7 +2501,7 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 });
 ```
 
-Then enable the middleware:
+Then enable the middleware before `app.UseAuthentication();`:
 
 ```csharp
 app.UseHttpLogging();
@@ -1930,15 +2510,19 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 
 ## Emit Business Telemetry
 
-Open `ApplicationInsightsDocumentActivityMonitor.cs` and implement search telemetry:
+You can create custom events and metrics in Application Insights to understand the business operations happening in the API. If you remember from the previous labs, you use the `DocumentActivityMonitor` interface in the service methods to track document operations. The implementation of that interface is where you will emit the custom telemetry. Let's do it know.
 
-Framework telemetry tells you that a request happened. Business telemetry tells you what the request meant for the document workflow.
+Open `ApplicationInsightsDocumentActivityMonitor.cs` and implement the `TrackSearch` method:
 
 ```csharp
 _logger.LogInformation(
-	"Document search completed. CacheHit={CacheHit} ResultCount={ResultCount}",
+	"Document search completed. CacheHit={CacheHit} ResultCount={ResultCount} HasQuery={HasQuery} HasTitleFilter={HasTitleFilter} HasTagFilter={HasTagFilter} HasContentTypeFilter={HasContentTypeFilter}",
 	cacheHit,
-	resultCount);
+	resultCount,
+	!string.IsNullOrWhiteSpace(criteria.Query),
+	!string.IsNullOrWhiteSpace(criteria.Title),
+	!string.IsNullOrWhiteSpace(criteria.Tag),
+	!string.IsNullOrWhiteSpace(criteria.ContentType));
 
 _telemetryClient.TrackEvent(
 	"Documents.Search.Completed",
@@ -1946,6 +2530,9 @@ _telemetryClient.TrackEvent(
 	{
 		["CacheHit"] = cacheHit.ToString(),
 		["HasQuery"] = (!string.IsNullOrWhiteSpace(criteria.Query)).ToString(),
+		["HasTitleFilter"] = (!string.IsNullOrWhiteSpace(criteria.Title)).ToString(),
+		["HasTagFilter"] = (!string.IsNullOrWhiteSpace(criteria.Tag)).ToString(),
+		["HasContentTypeFilter"] = (!string.IsNullOrWhiteSpace(criteria.ContentType)).ToString(),
 	},
 	new Dictionary<string, double>
 	{
@@ -1953,9 +2540,19 @@ _telemetryClient.TrackEvent(
 	});
 ```
 
+Same thing for the `TrackUploadSucceeded` method:
+
+```csharp
 Use the same pattern for upload and download:
 
 ```csharp
+ _logger.LogInformation(
+	"Document upload completed. DocumentId={DocumentId} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
+	document.Id,
+	document.ContentType,
+	document.Size,
+	durationMs);
+
 _telemetryClient.TrackEvent(
 	"Documents.Upload.Completed",
 	new Dictionary<string, string>
@@ -1968,6 +2565,83 @@ _telemetryClient.TrackEvent(
 		["SizeBytes"] = document.Size ?? 0,
 		["DurationMs"] = durationMs,
 	});
+
+_telemetryClient.TrackMetric(new MetricTelemetry("Documents.Upload.SizeBytes", document.Size ?? 0));
+_telemetryClient.TrackMetric(new MetricTelemetry("Documents.Upload.DurationMs", durationMs));
+```
+
+For the `TrackUploadDuplicate` method:
+
+```csharp
+_logger.LogWarning(
+		"Duplicate document upload rejected. ExistingDocumentId={ExistingDocumentId} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
+		existingDocumentId,
+		contentType,
+		sizeBytes,
+		durationMs);
+
+_telemetryClient.TrackEvent(
+	"Documents.Upload.Duplicate",
+	new Dictionary<string, string>
+	{
+		["ExistingDocumentId"] = existingDocumentId,
+		["ContentType"] = contentType,
+	},
+	new Dictionary<string, double>
+	{
+		["SizeBytes"] = sizeBytes,
+		["DurationMs"] = durationMs,
+	});
+
+_telemetryClient.TrackMetric(new MetricTelemetry("Documents.Upload.DuplicateCount", 1));
+```
+
+For the `TrackDownloadSucceeded` method:
+```csharp
+_logger.LogInformation(
+	"Document download completed. DocumentId={DocumentId} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
+	documentId,
+	contentType,
+	sizeBytes,
+	durationMs);
+
+_telemetryClient.TrackEvent(
+	"Documents.Download.Completed",
+	new Dictionary<string, string>
+	{
+		["DocumentId"] = documentId,
+		["ContentType"] = contentType,
+	},
+	new Dictionary<string, double>
+	{
+		["SizeBytes"] = sizeBytes,
+		["DurationMs"] = durationMs,
+	});
+
+_telemetryClient.TrackMetric(new MetricTelemetry("Documents.Download.SizeBytes", sizeBytes));
+_telemetryClient.TrackMetric(new MetricTelemetry("Documents.Download.DurationMs", durationMs));
+```
+
+And for the `TrackDownloadNotFound` method:
+
+```csharp
+_logger.LogWarning(
+	"Document download returned no content. DocumentId={DocumentId} DurationMs={DurationMs}",
+	documentId,
+	durationMs);
+
+_telemetryClient.TrackEvent(
+	"Documents.Download.NotFound",
+	new Dictionary<string, string>
+	{
+		["DocumentId"] = documentId,
+	},
+	new Dictionary<string, double>
+	{
+		["DurationMs"] = durationMs,
+	});
+
+_telemetryClient.TrackMetric(new MetricTelemetry("Documents.Download.NotFoundCount", 1));
 ```
 
 <div class="tip" data-title="Telemetry is useful when it is structured">
@@ -1976,13 +2650,15 @@ _telemetryClient.TrackEvent(
 
 </div>
 
-## Build And Try It
+## Run And Test Observability
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
 
-Send a request with a correlation id:
+Open `src/http/requests.http` and send a request with a correlation id header:
 
 ```txt
 X-Correlation-Id: workshop-correlation-id
@@ -1992,9 +2668,68 @@ X-Correlation-Id: workshop-correlation-id
 
 > Confirm that the response includes the same `X-Correlation-Id` value.
 >
-> If Application Insights is configured, run a document workflow and inspect the emitted custom events and metrics.
+> If Application Insights is configured, run the upload, search, and download requests from `src/http/requests.http`, then inspect the emitted custom events and metrics.
 
 </div>
+
+Inside Application Insights, you can see multiple signals:
+
+In the overview, you can see the requests, failures, server response time:
+
+![Application Insights overview](./assets/app-insights-overview.png)
+
+After a few calls, you will be able to see the Application Map with the API dependencies:
+
+![Application Insights map](./assets/app-insights-map.png)
+
+With your application running from your machine, open the Live Metrics section and get more real-time insights. You can see incoming requests, failed requests, and performance counters:
+
+![Application Insights live metrics](./assets/app-insights-live-metrics.png)
+
+Inside the Failure section, you can see the failed requests with their properties and traces:
+
+![Application Insights failures](./assets/app-insights-failures.png)
+
+If you click on a specific request, you will see the details of that request and the exception raised:
+
+![Application Insights request details](./assets/app-insights-request-details.png)
+
+Inside performance, you can see the performance of your dependencies and operations:
+
+![Application Insights performance](./assets/app-insights-performance.png)
+
+Finally, you can also query the custom events and metrics you emitted by going to the Logs section and running queries like this one to see the search events:
+
+![Application Insights custom events](./assets/app-insights-custom-events.png)
+
+Select **KQL Mode** in the top right corner of the query editor. Type your query as described below select it and click on the **Run** button.
+
+For duplicate upload copy/paste the following query and run it:
+
+```bash
+customEvents
+| where name == "Documents.Upload.Duplicate"
+| order by timestamp desc
+```
+
+For message logger copy/paste the following query and run it:
+
+```bash
+traces
+| where message has "Duplicate document upload rejected"
+| project timestamp, severityLevel, message, CorrelationId=tostring(customDimensions.["X-Correlation-Id"]), ServiceName=tostring(customDimensions.ServiceName), operation_Id
+| order by timestamp desc
+```
+
+For metrics copy/paste the following query and run it:
+
+```bash
+customMetrics
+| where name == "Documents.Upload.DuplicateCount"
+| summarize Total=sum(value) by bin(timestamp, 15m)
+```
+
+Feel free to explore the other custom events and metrics you emitted.
 
 ---
 
