@@ -111,6 +111,7 @@ internal sealed class DocumentService(
 
         // <lab id="5">
         //|        throw new NotImplementedException("TODO Lab 5: Add duplicate detection, retries, rollback, and clean error handling.");
+        // Polly retries transient SQL failures before the upload is allowed to continue.
         var existingDocument = await _resiliencePipeline.ExecuteAsync(
             async token => await _dbContext.Documents
                 .AsNoTracking()
@@ -133,6 +134,7 @@ internal sealed class DocumentService(
 
         try
         {
+            // Store the blob first so the SQL row never points to content that was not saved.
             await _storage.SaveAsync(hash, command.Content, md5, cancellationToken);
             blobUploaded = true;
 
@@ -152,6 +154,7 @@ internal sealed class DocumentService(
             };
 
             _dbContext.Documents.Add(document);
+            // Save metadata through Polly because SQL persistence can fail transiently.
             await _resiliencePipeline.ExecuteAsync(
                 async token => await _dbContext.SaveChangesAsync(token),
                 cancellationToken);
@@ -193,6 +196,7 @@ internal sealed class DocumentService(
         }
         catch (DbUpdateException exception)
         {
+            // If SQL failed because another request inserted the same hash, report a duplicate instead of deleting the shared blob.
             var conflictingDocument = await _resiliencePipeline.ExecuteAsync(
                 async token => await _dbContext.Documents
                     .AsNoTracking()
@@ -205,6 +209,7 @@ internal sealed class DocumentService(
                 {
                     try
                     {
+                        // Roll back only the blob created by this attempt when there is no duplicate owner.
                         await _storage.DeleteAsync(hash, cancellationToken);
                     }
                     catch (Exception cleanupException) when (cleanupException is not OperationCanceledException)
