@@ -102,7 +102,12 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
         try
         {
             await EnsureInitializedAsync(cancellationToken);
-            return true;
+            var existsResponse = await _containerClient.ExistsAsync(cancellationToken);
+            return existsResponse.Value;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {
