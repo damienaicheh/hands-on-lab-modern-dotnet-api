@@ -36,6 +36,8 @@ The endpoint should stay thin: it understands HTTP, form data, and response code
 Read the form data:
 
 ```csharp
+var logger = loggerFactory.CreateLogger("DocumentEndpoints");
+
 if (!request.HasFormContentType)
 {
 	return Results.Problem(
@@ -103,12 +105,17 @@ var documentId = Guid.NewGuid().ToString("N");
 
 await _storage.SaveAsync(hash, command.Content, md5, cancellationToken);
 
+var (title, description, source, tags) = NormalizeMetadata(command.Metadata);
 var document = new Document
 {
 	Id = documentId,
 	FileName = command.FileName,
 	ContentType = command.ContentType,
 	Size = command.Length,
+	Title = title,
+	Description = description,
+	Source = source,
+	Tags = tags,
 	ContentHash = hash,
 	CreatedUtc = DateTimeOffset.UtcNow,
 };
@@ -121,6 +128,8 @@ stopwatch.Stop();
 _activityMonitor.TrackUploadSucceeded(documentDto, stopwatch.Elapsed.TotalMilliseconds);
 return documentDto;
 ```
+
+The `NormalizeMetadata` helper trims text fields, removes empty tags, and keeps only one copy of each tag using a case-insensitive comparison. That way the API stores clean metadata from the first upload workflow.
 
 As you can see, the storage service is responsible for saving the file content, while the database context is responsible for saving the metadata. 
 
