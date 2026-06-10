@@ -29,6 +29,8 @@ public sealed class DocumentServiceTests
     [Fact]
     public async Task SearchUsesCacheBetweenCalls()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test that repeated searches use the cache.");
         await using var dbContext = CreateDbContext();
         dbContext.Documents.Add(
             new Document
@@ -60,6 +62,7 @@ public sealed class DocumentServiceTests
         Assert.Equal(2, activityMonitor.SearchEvents.Count);
         Assert.False(activityMonitor.SearchEvents[0].CacheHit);
         Assert.True(activityMonitor.SearchEvents[1].CacheHit);
+        // </lab>
     }
 
     /// <summary>
@@ -68,6 +71,8 @@ public sealed class DocumentServiceTests
     [Fact]
     public async Task UploadPersistsDocumentAndTracksSuccess()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test the upload happy path.");
         await using var dbContext = CreateDbContext();
         var storage = new RecordingStorage();
         var activityMonitor = new RecordingActivityMonitor();
@@ -98,6 +103,7 @@ public sealed class DocumentServiceTests
         Assert.Equal(1, storage.SaveCallCount);
         Assert.Single(activityMonitor.UploadSucceededDocuments);
         Assert.Equal(document.Id, activityMonitor.UploadSucceededDocuments[0].Id);
+        // </lab>
     }
 
     /// <summary>
@@ -106,6 +112,8 @@ public sealed class DocumentServiceTests
     [Fact]
     public async Task UploadWithDuplicateContentThrowsAndTracksDuplicate()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test duplicate upload detection.");
         await using var dbContext = CreateDbContext();
 
         var duplicateBytes = Encoding.UTF8.GetBytes("same-content");
@@ -138,6 +146,7 @@ public sealed class DocumentServiceTests
         Assert.Equal(0, storage.SaveCallCount);
         Assert.Single(activityMonitor.UploadDuplicateDocumentIds);
         Assert.Equal("existing-doc", activityMonitor.UploadDuplicateDocumentIds[0]);
+        // </lab>
     }
 
     /// <summary>
@@ -146,6 +155,8 @@ public sealed class DocumentServiceTests
     [Fact]
     public async Task DownloadReturnsNullWhenDocumentIsMissing()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test missing document download.");
         await using var dbContext = CreateDbContext();
         var storage = new RecordingStorage();
         var activityMonitor = new RecordingActivityMonitor();
@@ -156,6 +167,7 @@ public sealed class DocumentServiceTests
         Assert.Null(result);
         Assert.Single(activityMonitor.DownloadNotFoundDocumentIds);
         Assert.Equal("missing", activityMonitor.DownloadNotFoundDocumentIds[0]);
+        // </lab>
     }
 
     /// <summary>
@@ -164,6 +176,8 @@ public sealed class DocumentServiceTests
     [Fact]
     public async Task DownloadReturnsContentWhenDocumentExists()
     {
+        // <lab id="9">
+        //|        throw new NotImplementedException("TODO Lab 9: Test existing document download.");
         await using var dbContext = CreateDbContext();
         var storage = new RecordingStorage();
         var activityMonitor = new RecordingActivityMonitor();
@@ -195,6 +209,7 @@ public sealed class DocumentServiceTests
         Assert.Single(activityMonitor.DownloadSucceededDocumentIds);
         Assert.Equal("doc-42", activityMonitor.DownloadSucceededDocumentIds[0]);
         Assert.Empty(activityMonitor.DownloadNotFoundDocumentIds);
+        // </lab>
     }
 
     private static IDocumentService CreateService(

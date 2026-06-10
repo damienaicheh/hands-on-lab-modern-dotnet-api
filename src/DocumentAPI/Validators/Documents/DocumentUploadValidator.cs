@@ -18,6 +18,8 @@ public sealed class DocumentUploadValidator(IOptions<DocumentApiOptions> options
     /// <inheritdoc />
     public RequestValidationFailure? Validate(IFormFile? file, DocumentMetadataDto? metadata)
     {
+        // <lab id="5">
+        //|        return null;
         if (file is null)
         {
             return new RequestValidationFailure(
@@ -74,5 +76,6 @@ public sealed class DocumentUploadValidator(IOptions<DocumentApiOptions> options
         }
 
         return null;
+        // </lab>
     }
 }

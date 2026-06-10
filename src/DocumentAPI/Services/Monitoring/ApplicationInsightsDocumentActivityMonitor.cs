@@ -20,6 +20,9 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
     /// <inheritdoc />
     public void TrackSearch(DocumentSearchCriteria criteria, int resultCount, bool cacheHit)
     {
+        // <lab id="12">
+        //|        // TODO Lab 12: Emit a structured log and Application Insights event for document searches.
+        //|        return;
         _logger.LogInformation(
             "Document search completed. CacheHit={CacheHit} ResultCount={ResultCount} HasQuery={HasQuery} HasTitleFilter={HasTitleFilter} HasTagFilter={HasTagFilter} HasContentTypeFilter={HasContentTypeFilter}",
             cacheHit,
@@ -43,11 +46,15 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
             {
                 ["ResultCount"] = resultCount,
             });
+        // </lab>
     }
 
     /// <inheritdoc />
     public void TrackUploadSucceeded(DocumentDto document, double durationMs)
     {
+        // <lab id="12">
+        //|        // TODO Lab 12: Emit upload success telemetry.
+        //|        return;
         _logger.LogInformation(
             "Document upload completed. DocumentId={DocumentId} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
             document.Id,
@@ -70,11 +77,15 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
 
         _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Upload.SizeBytes", document.Size ?? 0));
         _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Upload.DurationMs", durationMs));
+        // </lab>
     }
 
     /// <inheritdoc />
     public void TrackUploadDuplicate(string existingDocumentId, string contentType, long sizeBytes, double durationMs)
     {
+        // <lab id="12">
+        //|        // TODO Lab 12: Emit duplicate upload telemetry.
+        //|        return;
         _logger.LogWarning(
             "Duplicate document upload rejected. ExistingDocumentId={ExistingDocumentId} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
             existingDocumentId,
@@ -96,11 +107,15 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
             });
 
         _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Upload.DuplicateCount", 1));
+        // </lab>
     }
 
     /// <inheritdoc />
     public void TrackDownloadSucceeded(string documentId, string contentType, long sizeBytes, double durationMs)
     {
+        // <lab id="12">
+        //|        // TODO Lab 12: Emit download success telemetry.
+        //|        return;
         _logger.LogInformation(
             "Document download completed. DocumentId={DocumentId} ContentType={ContentType} SizeBytes={SizeBytes} DurationMs={DurationMs}",
             documentId,
@@ -123,11 +138,15 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
 
         _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Download.SizeBytes", sizeBytes));
         _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Download.DurationMs", durationMs));
+        // </lab>
     }
 
     /// <inheritdoc />
     public void TrackDownloadNotFound(string documentId, double durationMs)
     {
+        // <lab id="12">
+        //|        // TODO Lab 12: Emit download miss telemetry.
+        //|        return;
         _logger.LogWarning(
             "Document download returned no content. DocumentId={DocumentId} DurationMs={DurationMs}",
             documentId,
@@ -145,5 +164,6 @@ public sealed class ApplicationInsightsDocumentActivityMonitor(
             });
 
         _telemetryClient.TrackMetric(new MetricTelemetry("Documents.Download.NotFoundCount", 1));
+        // </lab>
     }
 }

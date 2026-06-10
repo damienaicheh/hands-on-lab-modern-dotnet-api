@@ -25,22 +25,36 @@ public static class DependencyInjection
     /// <returns>The same service collection so that calls can be chained.</returns>
     public static IServiceCollection AddDocumentServices(this IServiceCollection services, DocumentApiOptions options)
     {
+        // <lab id="2">
+        //|        // TODO Lab 2: Register DocumentDbContext with the SQL Server provider.
         services.AddDbContext<DocumentDbContext>(builder => ConfigureDatabase(builder, options.Database));
+        // </lab>
 
         // Singleton: shared app-wide infrastructure and cache invalidation state.
+        // <lab id="3">
+        //|        // TODO Lab 3: Register the Azure Blob Storage implementation.
         services.AddSingleton<IDocumentStorageService, AzureBlobDocumentStorageService>();
+        // </lab>
 
         services.AddSingleton<IDocumentActivityMonitor, ApplicationInsightsDocumentActivityMonitor>();
 
+        // Register the SQL resilience pipeline.
         services.AddSingleton(DocumentResiliencePipeline.Create());
+        // Register the shared search cache version.
         services.AddSingleton<DocumentSearchCacheVersion>();
 
         // Transient: the validator is lightweight and stateless, so a fresh instance per resolution avoids carrying mutable state across calls.
         services.AddTransient<IDocumentUploadValidator, DocumentUploadValidator>();
         
         // Scoped: these services depend on a request-scoped DocumentDbContext, so sharing one instance per request keeps a consistent unit-of-work and avoids lifetime mismatches.
+        // <lab id="7">
+        //|        services.AddScoped<IDocumentService>(_ => throw new NotImplementedException("TODO Lab 4: Implement the document workflow before calling document endpoints."));
         services.AddScoped<IDocumentService, DocumentService>();
+        // </lab>
+        // <lab id="8">
+        //|        services.AddScoped<IHealthStatusService>(_ => throw new NotImplementedException("TODO Lab 8: Implement health status checks before calling the health endpoint."));
         services.AddScoped<IHealthStatusService, DocumentHealthStatusService>();
+        // </lab>
 
         return services;
     }
@@ -52,10 +66,13 @@ public static class DependencyInjection
     /// <param name="cancellationToken">A token used to cancel the operation.</param>
     public static async Task InitializeDocumentDatabaseAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
     {
+        // <lab id="2">
+        //|    // TODO Lab 2: Apply pending EF Core migrations at startup.
         using var scope = services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DocumentDbContext>();
 
         await dbContext.Database.MigrateAsync(cancellationToken);
+        // </lab>
     }
 
     /// <summary>
@@ -63,6 +80,8 @@ public static class DependencyInjection
     /// </summary>
     private static void ConfigureDatabase(DbContextOptionsBuilder builder, DocumentDatabaseOptions databaseOptions)
     {
+        // <lab id="2">
+        //|    // TODO Lab 2: Configure the SQL Server provider.
         if (string.IsNullOrWhiteSpace(databaseOptions.ServiceUri))
         {
             throw new InvalidOperationException("DocumentApi:Database:ServiceUri must be configured.");
@@ -77,6 +96,7 @@ public static class DependencyInjection
         builder
             .UseSqlServer(CreateSqlConnectionStringFromSettings(databaseOptions.ServiceUri, databaseOptions.DatabaseName))
             .AddInterceptors(new AzureSqlAuthenticationInterceptor(credential));
+        // </lab>
     }
 
     /// <summary>
@@ -84,6 +104,9 @@ public static class DependencyInjection
     /// </summary>
     private static string CreateSqlConnectionStringFromSettings(string serviceUri, string databaseName)
     {
+        // <lab id="2">
+        //|    // TODO Lab 2: Build a SQL Server connection string from the configured URI and database name.
+        //|    return string.Empty;
         if (!Uri.TryCreate(serviceUri, UriKind.Absolute, out var uri))
         {
             throw new InvalidOperationException("DocumentApi:Database:ServiceUri must be a valid absolute URI.");
@@ -124,5 +147,6 @@ public static class DependencyInjection
         };
 
         return builder.ConnectionString;
+        // </lab>
     }
 }

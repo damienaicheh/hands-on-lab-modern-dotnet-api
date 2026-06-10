@@ -5,7 +5,7 @@
 @apiVersion=1
 
 # Replace with a valid JWT before calling /documents endpoints
-@token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJEb2N1bWVudEFQSSIsImF1ZCI6IkRvY3VtZW50QVBJQ2xpZW50Iiwic3ViIjoibGFiLXVzZXIiLCJuYW1lIjoiRG9jdW1lbnRBUEkgVXNlciIsImlhdCI6MTczNTY4OTYwMCwibmJmIjoxNzM1Njg5NjAwLCJleHAiOjIxNDU5MTY4MDAsImp0aSI6ImxhYi1sb25nLWxpdmVkLXRva2VuLTAwMSJ9.ZpEWJ1HtYr_O3a4TbbsjWANwVPDxPPeg6xoBIvlzWk0
+@token=PASTE_VALID_JWT_HERE
 
 ### 1. Health
 GET {{authority}}/health
@@ -17,16 +17,15 @@ Accept: application/json
 
 ### 3. Upload a PDF document
 # @name uploadDocument
-@fileName=sample-1.pdf
 POST {{authority}}/documents/?api-version={{apiVersion}}
-Authorization: Bearer {{token}}
+// Authorization: Bearer {{token}}
 Content-Type: multipart/form-data; boundary=boundary
 
 --boundary
-Content-Disposition: form-data; name="file"; filename="{{fileName}}"
+Content-Disposition: form-data; name="file"; filename="sample-1.pdf"
 Content-Type: application/pdf
 
-< ./files/{{fileName}}
+< ./files/sample-1.pdf
 --boundary
 Content-Disposition: form-data; name="metadata"
 
@@ -41,10 +40,10 @@ Content-Disposition: form-data; name="metadata"
 ### 4. Search documents
 # @name searchDocuments
 GET {{authority}}/documents/search?api-version={{apiVersion}}&query=sample
-Authorization: Bearer {{token}}
+// Authorization: Bearer {{token}}
 Accept: application/json
 
 ### 5. Download the last uploaded document
 GET {{authority}}/documents/{{uploadDocument.response.body.$.id}}/content?api-version={{apiVersion}}
-Authorization: Bearer {{token}}
+// Authorization: Bearer {{token}}
 Accept: application/pdf

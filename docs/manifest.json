@@ -1,0 +1,99 @@
+{
+  "outputRoot": "generated/labs",
+  "include": [
+    "DocumentAPI.slnx",
+    "src/DocumentAPI/**",
+    "tests/DocumentAPI.Tests/**",
+    "src/http/**"
+  ],
+  "exclude": [
+    "**/bin/**",
+    "**/obj/**"
+  ],
+  "labs": [
+    {
+      "id": "0",
+      "title": "Prerequisites and Setup",
+      "description": "Set up the development environment and prerequisites for the Document API project, including installing necessary tools and configuring the environment.",
+      "markdown": "docs/0-prerequisites-and-setup.md"
+    },
+    {
+      "id": "1",
+      "title": "Swagger setup",
+      "description": "Set up Swagger for the Document API project to enable API documentation and testing.",
+      "markdown": "docs/1-swagger-setup.md"
+    },
+    {
+      "id": "2",
+      "title": "SQL Database and Dependency Injection",
+      "description": "Implement SQL database integration for the Document API and set up dependency injection for the project.",
+      "markdown": "docs/2-sql-database-and-dependency-injection.md"
+    },
+    {
+      "id": "3",
+      "title": "Blob Storage Integration",
+      "description": "Integrate Azure Blob Storage into the Document API for storing and retrieving documents.",
+      "markdown": "docs/3-blob-storage-integration.md"
+    },
+    {
+      "id": "4",
+      "title": "Upload Happy Path",
+      "description": "Implement the happy path for uploading documents to the Document API, ensuring successful uploads.",
+      "markdown": "docs/4-upload-happy-path.md"
+    },
+    {
+      "id": "5",
+      "title": "Upload Robustness",
+      "description": "Enhance the robustness of the upload functionality in the Document API to handle edge cases and errors.",
+      "markdown": "docs/5-upload-robustness.md"
+    },
+    {
+      "id": "6",
+      "title": "Download and Search Functionality",
+      "description": "Implement download and search functionalities in the Document API to allow users to retrieve and search for documents.",
+      "markdown": "docs/6-download-and-search-functionality.md" 
+    },
+    {
+      "id": "7",
+      "title": "Search Caching",
+      "description": "Implement caching for search results in the Document API to improve performance and reduce latency.",
+      "markdown": "docs/7-search-caching.md"
+    },
+    {
+      "id": "8",
+      "title": "Health Endpoint",
+      "description": "Add a health endpoint to the Document API to monitor the health and status of the application.",
+      "markdown": "docs/8-health-endpoint.md"
+    },
+    {
+      "id": "9",
+      "title": "Unit Testing",
+      "description": "Write unit tests for the Document API to ensure code quality and reliability.",
+      "markdown": "docs/9-unit-testing.md"
+    },
+    {
+      "id": "10",
+      "title": "API Versioning",
+      "description": "Implement API versioning in the Document API to manage changes and maintain backward compatibility.",
+      "markdown": "docs/10-api-versioning.md"
+    },
+    {
+      "id": "11",
+      "title": "JWT Authentication",
+      "description": "Implement JWT authentication in the Document API to secure access to the endpoints.",
+      "markdown": "docs/11-jwt-authentication.md"
+    },
+    {
+      "id": "12",
+      "title": "Observability: Correlation ID and Application Insights",
+      "description": "Add observability features to the Document API, including correlation ID for tracing and integration with Application Insights for monitoring.",
+      "markdown": "docs/12-observability-correlation-id-and-app-insights.md"
+    },
+    {
+      "id": "13",
+      "title": "Closing",
+      "description": "Wrap up the workshop and provide final thoughts on the Document API project.",
+      "markdown": "docs/13-closing.md"
+    }
+  ]
+}

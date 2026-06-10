@@ -24,6 +24,8 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
     /// <param name="options">The bound document API options.</param>
     public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
     {
+        // <lab id="3">
+        //|    // TODO Lab 3: Create the BlobServiceClient and target container client.
         var storageOptions = options.Value.Storage;
         var credential = new DefaultAzureCredential();
         var blobOptions = new BlobClientOptions
@@ -39,11 +41,14 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
         };
         var blobServiceClient = new BlobServiceClient(new Uri(storageOptions.ServiceUri), credential, blobOptions);
         _containerClient = blobServiceClient.GetBlobContainerClient(storageOptions.ContainerName);
+        // </lab>
     }
 
     /// <inheritdoc />
     public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
     {
+        // <lab id="3">
+        //|    throw new NotImplementedException("TODO Lab 3: Upload content to Blob Storage.");
         await EnsureInitializedAsync(cancellationToken);
 
         var blobClient = _containerClient.GetBlobClient(contentHash);
@@ -60,18 +65,24 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
             cancellationToken);
 
         await VerifyContentIntegrityAsync(blobClient, contentHash, md5Hash, response.Value.ContentHash, cancellationToken);
+        // </lab>
     }
 
     /// <inheritdoc />
     public async Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
     {
+        // <lab id="3">
+        //|    throw new NotImplementedException("TODO Lab 3: Delete content from Blob Storage.");
         await EnsureInitializedAsync(cancellationToken);
         await _containerClient.DeleteBlobIfExistsAsync(contentHash, DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
+        // </lab>
     }
 
     /// <inheritdoc />
     public async Task<Stream?> OpenReadAsync(string contentHash, CancellationToken cancellationToken)
     {
+        // <lab id="3">
+        //|    throw new NotImplementedException("TODO Lab 3: Open content from Blob Storage.");
         await EnsureInitializedAsync(cancellationToken);
 
         try
@@ -82,6 +93,7 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
         {
             return null;
         }
+        // </lab>
     }
 
     /// <inheritdoc />
@@ -90,7 +102,12 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
         try
         {
             await EnsureInitializedAsync(cancellationToken);
-            return true;
+            var existsResponse = await _containerClient.ExistsAsync(cancellationToken);
+            return existsResponse.Value;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch
         {
@@ -137,6 +154,9 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
         byte[]? storedHash,
         CancellationToken cancellationToken)
     {
+        // <lab id="5">
+        //|    // TODO Lab 5: Compare the returned content hash and delete corrupted blobs.
+        //|    return;
         if (storedHash is not null && CryptographicOperations.FixedTimeEquals(expectedHash, storedHash))
         {
             return;
@@ -144,5 +164,6 @@ public sealed class AzureBlobDocumentStorageService : IDocumentStorageService
 
         await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots, cancellationToken: cancellationToken);
         throw new DocumentStorageIntegrityException(contentHash, expectedHash, storedHash);
+        // </lab>
     }
 }
