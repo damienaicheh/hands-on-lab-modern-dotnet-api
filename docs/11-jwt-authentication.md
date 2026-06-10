@@ -31,6 +31,8 @@ Open `Program.cs` and add JWT bearer authentication:
 
 JWT bearer authentication lets the API validate a signed token without calling an external service for every request. The issuer, audience, and signing key define which tokens this API trusts.
 
+Search for "TODO Lab 11: Register JWT bearer authentication and configure token validation" to find the right place to add this code:
+
 ```csharp
 builder.Services
 	.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -49,13 +51,6 @@ builder.Services
 			ClockSkew = TimeSpan.FromMinutes(1),
 		};
 	});
-```
-
-Then enable the middleware before endpoint execution:
-
-```csharp
-app.UseAuthentication();
-app.UseAuthorization();
 ```
 
 ## Return A Clean 401 Response
@@ -82,6 +77,15 @@ options.Events = new JwtBearerEvents
 };
 ```
 
+## Enable Authentication Middleware
+
+Then enable the middleware before endpoint execution (`app.MapHealthEndpoints();`):
+
+```csharp
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
 ## Protect Document Endpoints
 
 Open `DocumentEndpoints.cs` and require authorization on the documents group:
@@ -95,13 +99,11 @@ var v1Group = documentGroup.MapGroup("/documents")
 	.HasApiVersion(new ApiVersion(1));
 ```
 
-Do not add authorization to `/health`.
+If you open `HealthEndpoints.cs` you will see that the health endpoints has the `.AllowAnonymous()` configuration which allows them to be called without authentication.
 
 ## Add Bearer Support To Swagger
 
-Inside `AddSwaggerGen`, add a bearer security definition:
-
-This does not authenticate anyone by itself. It only teaches Swagger UI how to send an `Authorization: Bearer ...` header when you test protected endpoints.
+Go back to `Program.cs` inside `AddSwaggerGen`, add a bearer security definition at beginning of the configuration:
 
 ```csharp
 var bearerSecurityScheme = new OpenApiSecurityScheme
@@ -117,13 +119,30 @@ var bearerSecurityScheme = new OpenApiSecurityScheme
 options.AddSecurityDefinition("Bearer", bearerSecurityScheme);
 ```
 
-## Build And Try It
+This does not authenticate anyone by itself. It only teaches Swagger UI how to send an `Authorization: Bearer ...` header when you test protected endpoints.
 
-```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+Then apply that scheme to the generated operations:
+
+```csharp
+options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+{
+	[new OpenApiSecuritySchemeReference("Bearer", hostDocument: document, externalResource: null)] = [],
+});
 ```
 
-Call the search endpoint without a token:
+Without the requirement, Swagger UI knows what a bearer token is, but the operations are not annotated as requiring it.
+
+## Run And Test Authentication
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
+
+```bash
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
+```
+
+Open `src/http/requests.http`. First send the `Health` request to confirm the API is running.
+
+Then call the search endpoint without a token:
 
 ```txt
 /documents/search?api-version=1.0
@@ -131,9 +150,58 @@ Call the search endpoint without a token:
 
 It should return `401 Unauthorized`.
 
+To test the authenticated path, generate a valid JWT :
+
+
+1. Open https://jwt.io/
+2. In the Decoded section, update the Header.
+3. Use this Header:
+```json
+{
+	"alg": "HS256",
+	"typ": "JWT"
+}
+```
+
+4. Use this Payload template:
+
+```json
+{
+	"iss": "DocumentAPI",
+	"aud": "DocumentAPIClient",
+	"sub": "lab-user",
+	"name": "DocumentAPI User",
+	"iat": 1735689600,
+	"nbf": 1735689600,
+	"exp": 2145916800,
+	"jti": "lab-long-lived-token-001"
+}
+```
+
+    Notes:
+    - iat/nbf = 1735689600 (2025-01-01T00:00:00Z)
+    - exp = 2145916800 (2038-01-01T00:00:00Z)
+    - This is intentionally long-lived for testing purposes.
+
+5. In Verify Signature:
+- Set the secret to: `document-api-signing-key-to-randomly-generate`
+- Make sure Secret base64 encoded is disabled
+
+6. Copy the token from the Encoded section.
+
+Paste it into the `@token` variable near the top of `src/http/requests.http`:
+
+```http
+@token=PASTE_VALID_JWT_HERE
+```
+
+Then uncomment the `Authorization: Bearer {{token}}` for each document request and send it again. With a valid token, the request should pass authentication and continue to the normal document endpoint behavior.
+
+Add back the `Authorization: Bearer {{token}}` header on the document request and send it again. With a valid token, the request should pass authentication and continue to the normal document endpoint behavior.
+
 <div class="task" data-title="Validation">
 
-> Confirm that `/documents` requires a token.
+> Confirm that `/documents` requests in `src/http/requests.http` require a token.
 >
 > Confirm that `/health` still works anonymously.
 
