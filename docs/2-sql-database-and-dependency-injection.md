@@ -2,18 +2,18 @@
 
 In this lab, you will add SQL Server persistence for document metadata. The API will still not upload documents end-to-end, but the persistence layer will be ready for the next labs.
 
-The starter already provides the `Document` entity, database options, EF Core mapping, migration files, and Azure SQL authentication helper. Your job is to connect those pieces through `DocumentDbContext` and dependency injection.
+The starter already provides the `Document` entity, database options, Entity Framework Core mapping, migration files, and Azure SQL authentication helper. Your job is to connect those pieces through `DocumentDbContext` and dependency injection.
 
-At the end of this lab, the API will know how to talk to the database, even if no endpoint is using it fully yet. That lets the next labs focus on workflows instead of infrastructure setup.
+At the end of this lab, the API will know how to talk to the database, even if no endpoint is using it fully yet.
 
 ## What You Will Learn
 
 In this lab, you will:
 
-- Expose a `DbSet<Document>` from the EF Core context.
+- Expose a `DbSet<Document>` from the Entity Framework Core context.
 - Apply entity configurations from the current assembly.
 - Register `DocumentDbContext` in the application container.
-- Apply pending migrations when the application starts.
+- Initialise the database when the application starts.
 - Build a SQL Server connection string from strongly typed options.
 
 ## Files To Open
@@ -29,13 +29,15 @@ The entity, options, mappings, and migration are already provided.
 
 Open `DocumentDbContext.cs` and expose the document metadata set:
 
-The `DbContext` is the unit of work for EF Core. It is the object your services will use to query and save document metadata without writing SQL by hand.
+The `DbContext` is the unit of work for Entity Framework Core. It is the object your services will use to query and save document metadata without writing SQL by hand. For this lab you only need to expose a `DbSet<Document>`, which represents the table of documents in the database. Each `Document` instance corresponds to a row in that table.
 
 ```csharp
 public DbSet<Document> Documents => Set<Document>();
 ```
 
-Then apply the EF Core configurations:
+You can check the `Document` class inside the `Entities` folder.
+
+Then apply the Entity Framework Core configurations by overriding `OnModelCreating` in this class:
 
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -57,6 +59,8 @@ Registering the context in dependency injection lets services ask for `DocumentD
 services.AddDbContext<DocumentDbContext>(builder => ConfigureDatabase(builder, options.Database));
 ```
 
+As you can see the database configuration is reading the appsettings through `DocumentApiOptions`, which contains all the configuration for the API. We point to the `Database` section of the configuration, which you filled in the previous lab.
+
 Then implement startup migration:
 
 ```csharp
@@ -73,15 +77,15 @@ public static async Task InitializeDocumentDatabaseAsync(
 
 <div class="tip" data-title="Why migrations at startup?">
 
-> For this hands-on lab, applying migrations at startup keeps the environment simple. In production, database changes are usually deployed by a release pipeline.
+> For this hands-on lab, applying migrations at startup keeps the environment simple. In production, database changes can be deployed using the API code or custom scripts outside of the application. Both approaches are valid, and the best choice depends on your operational practices and risk management.
 
 </div>
 
 ## Configure The SQL Provider
 
-Add the provider configuration:
+The workshop uses identity-based access to all services. That means the application receives a token through the `DefaultAzureCredential` class from the Azure Identity library instead of storing a SQL username and password in configuration.
 
-The workshop uses identity-based access to Azure SQL. That means the application receives a token through `DefaultAzureCredential` instead of storing a SQL username and password in configuration.
+Add the provider configuration:
 
 ```csharp
 private static void ConfigureDatabase(DbContextOptionsBuilder builder, DocumentDatabaseOptions databaseOptions)
@@ -102,6 +106,8 @@ private static void ConfigureDatabase(DbContextOptionsBuilder builder, DocumentD
 		.AddInterceptors(new AzureSqlAuthenticationInterceptor(credential));
 }
 ```
+
+As you can see, the connection string is built from the configured service URI and database name. The `AzureSqlAuthenticationInterceptor` takes care of requesting a token for the database on every connection attempt.
 
 Now add the helper that converts the configured server URI into a SQL connection string:
 
@@ -124,9 +130,19 @@ private static string CreateSqlConnectionStringFromSettings(string serviceUri, s
 
 ## Build The Project
 
+Build the project using the **Run** button in your Visual Studio or the following command lines:
+
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+**After** the webbrowser opens, go to your Azure resource group and open your Database named `DocumentDb` in Azure and check the "Query editor (preview)" blade. You should see the `Documents` table there, which means the API successfully applied the migration at startup.
+
+![Azure SQL Database with the Documents table visible in the query editor](./assets/azure-sql-documents-table.png)
+
+and also the migration history table with the initial migration applied:
+
+![Azure SQL Database with the migration history table showing the initial migration applied](./assets/azure-sql-migration-history.png)
 
 <div class="task" data-title="Validation">
 

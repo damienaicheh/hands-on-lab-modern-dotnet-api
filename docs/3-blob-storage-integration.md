@@ -1,6 +1,6 @@
 # Lab 3 - Blob Storage Integration
 
-In the previous lab, you wired SQL Server for metadata. Now you will add Azure Blob Storage for the binary content of uploaded documents.
+In the previous lab, you wired SQL Server to store the file metadata of your documents. Now you will add Azure Blob Storage for the binary content of uploaded documents.
 
 The API keeps metadata and content separated: SQL Server stores searchable properties, while Blob Storage stores the file bytes.
 
@@ -10,11 +10,12 @@ This separation is common in document systems: the database is great for filters
 
 In this lab, you will:
 
-- Create a `BlobServiceClient` with `DefaultAzureCredential`.
+- Instantiate a `BlobServiceClient` from the Azure SDK with `DefaultAzureCredential`.
 - Resolve the configured blob container.
-- Save content to Blob Storage.
-- Open document content for download.
-- Delete content when cleanup is required.
+- Implement the storage service methods to:
+	- Save content to Blob Storage.
+	- Open document content for download.
+	- Delete content when cleanup is required.
 - Register the storage service in dependency injection.
 
 ## Files To Open
@@ -30,7 +31,7 @@ The storage interface, options, packages, and configuration keys are already pro
 
 Open `AzureBlobDocumentStorageService.cs` and implement the constructor:
 
-Blob Storage is the right place for the binary file content because it is optimized for streams and large objects. SQL Server stays focused on metadata that you need to query.
+Blob Storage is the right place for the binary file content because it is optimized for streams and large objects. SQL Server stays focused on metadata that you need to query. The file uploaded will be stored as a blob.
 
 ```csharp
 public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
@@ -42,13 +43,13 @@ public AzureBlobDocumentStorageService(IOptions<DocumentApiOptions> options)
 }
 ```
 
-`DefaultAzureCredential` can use your Azure CLI sign-in locally and managed identity in Azure.
+As you can see, the Azure SDK client is straightforward to instantiate. The `ServiceUri` and `ContainerName` come from configuration, and the credential uses `DefaultAzureCredential`, which is a great option for local development and Azure-hosted environments. Locally, it can use your Azure CLI sign-in, and in Azure, it can use a managed identity if configured.
 
 ## Save Content
 
-Implement `SaveAsync`:
-
 The storage service receives a stream, not a byte array. This keeps the API friendly to larger files because callers do not need to load everything into memory before saving.
+
+Implement `SaveAsync`:
 
 ```csharp
 public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, CancellationToken cancellationToken)
@@ -60,13 +61,13 @@ public async Task SaveAsync(string contentHash, Stream content, byte[] md5Hash, 
 }
 ```
 
-The blob name uses the content hash. This makes duplicate content easier to detect in later labs.
+The blob name uses the content hash. This makes duplicate content easier to detect in later labs. As you can see the Azure SDK makes it easy to upload a stream with `UploadAsync`.
 
 ## Open And Delete Content
 
-Implement `DeleteAsync`:
-
 Deletion is used later when the upload workflow needs to roll back a blob after a database failure. Keeping it in the storage abstraction makes the business service easier to read.
+
+Implement `DeleteAsync`:
 
 ```csharp
 public async Task DeleteAsync(string contentHash, CancellationToken cancellationToken)
@@ -101,7 +102,7 @@ public async Task<Stream?> OpenReadAsync(string contentHash, CancellationToken c
 
 ## Register The Storage Service
 
-Open `DependencyInjection.cs` and register the Azure implementation:
+Open `DependencyInjection.cs` and after the `DocumentDbContext` registration, register the Azure Service implementation:
 
 ```csharp
 services.AddSingleton<IDocumentStorageService, AzureBlobDocumentStorageService>();

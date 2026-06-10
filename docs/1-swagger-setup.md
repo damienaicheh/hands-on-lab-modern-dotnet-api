@@ -6,7 +6,7 @@ The goal is intentionally small: understand where the API is wired, then add jus
 
 You are not building business behavior yet. You are preparing the API surface so every next lab can be tested from a browser and described by an OpenAPI contract.
 
-## What you will learn
+## What You Will Learn
 
 In this lab, you will:
 
@@ -17,7 +17,7 @@ In this lab, you will:
 - Add the first metadata on document endpoints.
 - Verify that the OpenAPI document is generated.
 
-## Files to open
+## Files To Open
 
 You only need to edit these files:
 
@@ -141,12 +141,6 @@ You will add more response codes later as the API becomes more complete.
 ## Run The API
 
 Build the project using the **Run** button in your IDE or the following command lines:
-
-```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
-```
-
-Then run it:
 
 ```bash
 dotnet run --project src/DocumentAPI/DocumentAPI.csproj
