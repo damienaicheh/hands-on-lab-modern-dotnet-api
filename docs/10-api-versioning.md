@@ -29,7 +29,7 @@ Swagger versioning helpers are already provided in the `OpenApi` folder.
 
 Open `Program.cs` and add API versioning services:
 
-Versioning makes the contract explicit. Instead of guessing which behavior a client expects, the API requires the caller to say which version it is using.
+Versioning makes the contract explicit. Instead of guessing which behavior a client expects, the API requires the caller to say which version it is using. Search for `TODO Lab 10` to find the right place to add this code:
 
 ```csharp
 builder.Services
@@ -48,6 +48,7 @@ builder.Services
 Then register the Swagger configuration helpers:
 
 ```csharp
+// After: builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 ```
 
@@ -57,11 +58,13 @@ Inside `AddSwaggerGen`, add the operation filter:
 options.OperationFilter<SwaggerDefaultValues>();
 ```
 
+This will make sure the generated Swagger documents reflect the API versioning configuration, for instance by adding `api-version` as a required query parameter.
+
 ## Create A Versioned Documents Group
 
-Open `DocumentEndpoints.cs` and replace the simple route group with a versioned API builder:
-
 Grouping the document routes keeps versioning in one place. Future versions can add a new group without touching `/health` or unrelated operational endpoints.
+
+Open `DocumentEndpoints.cs` and replace the simple route group with a versioned API builder:
 
 ```csharp
 var documentGroup = endpoints.NewVersionedApi("Documents");
@@ -80,9 +83,10 @@ All document endpoints mapped on `v1Group` now require a supported API version.
 
 ## Expose Swagger Per Version
 
-Still in `Program.cs`, resolve the version provider in the development block:
 
 Swagger should show the same versioned contract that clients use at runtime. When future versions appear, each one can have its own generated document.
+
+Still in `Program.cs`, resolve the version provider in the `if (app.Environment.IsDevelopment())` block:
 
 ```csharp
 var apiVersionDescriptionProvider = app.Services.GetRequiredService<IApiVersionDescriptionProvider>();
@@ -104,11 +108,15 @@ app.UseSwaggerUI(options =>
 });
 ```
 
-## Build And Try It
+## Run And Test Versioning
+
+Start the project using the **Run** button in your Visual Studio or the following command lines:
 
 ```bash
-dotnet build src/DocumentAPI/DocumentAPI.csproj
+dotnet run --project src/DocumentAPI/DocumentAPI.csproj
 ```
+
+Open `src/http/requests.http` and make sure `@apiVersion` is set to `1`.
 
 Call a versioned endpoint:
 
@@ -116,11 +124,12 @@ Call a versioned endpoint:
 /documents/search?api-version=1.0
 ```
 
-Then try the same endpoint without `api-version`.
+Then temporarily remove `?api-version={{apiVersion}}` from one document request and send it again, you will get
+a 404 Not Found or change the value of the `apiVersion` parameter to `2` for instance and you will get a 400 Bad Request with a message about missing API version. This confirms that the API now requires explicit version selection.
 
 <div class="task" data-title="Validation">
 
-> Document endpoints should require `api-version=1.0`.
+> Document endpoints should require `api-version=1.0` or `api-version=1`.
 >
 > `/health` should still be callable without an API version.
 

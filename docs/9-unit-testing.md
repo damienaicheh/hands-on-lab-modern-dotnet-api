@@ -241,7 +241,21 @@ Reading the stream verifies that the returned content is not just non-null; it i
 
 ## Run The Tests
 
-Start the project using the **Run** button in your Visual Studio or the following command lines:
+You do not need to start the API project to run these tests. Visual Studio can discover and run them directly from the test project.
+
+From Visual Studio:
+
+1. Build the solution once so Visual Studio can discover the tests.
+2. Open **Test > Test Explorer** from the top menu.
+3. In Test Explorer, expand `DocumentAPI.Tests`.
+4. Select **Run All Tests** to run the full test project.
+5. To focus on one scenario, right-click a single test such as `UploadPersistsDocumentAndTracksSuccess` and select **Run**.
+
+When a test fails, select it in Test Explorer to inspect the assertion message and stack trace. For this lab, most failures point either to `DocumentServiceTests.cs` or to one of the workflow methods in `DocumentService.cs`.
+
+![Visual Studio Test Explorer showing test results](./assets/test-explorer.png)
+
+You can also run the same test project from the command line:
 
 ```bash
 dotnet test tests/DocumentAPI.Tests/DocumentAPI.Tests.csproj
@@ -251,7 +265,7 @@ dotnet test tests/DocumentAPI.Tests/DocumentAPI.Tests.csproj
 
 > The test project should pass consistently.
 >
-> If this is the first run, SQL Server Testcontainers may take longer while the container image is prepared.
+> If you run the full test project, the first run may take longer while SQL Server Testcontainers prepares the container image for integration tests.
 
 </div>
 
