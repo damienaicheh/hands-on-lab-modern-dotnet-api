@@ -33,6 +33,10 @@ The health endpoint, DTOs, packages, and starter tests are already provided.
 
 </div>
 
+## Get the Starter Code
+
+Download the **starter.zip** file for these labs from the [releases page][starter-latest].
+
 ## Prepare Local Settings
 
 Before changing the API code, inside `src/DocumentAPI/` duplicate the `appsettings.json.template` file and rename the copy `appsettings.json`. This will create your local settings file from the provided template. The API reads `appsettings.json` when it starts, and the template contains placeholders for the Azure resources deployed in the prerequisites.
@@ -163,5 +167,7 @@ You must see something like this, with the three document endpoints visible:
 > The handlers can still throw `NotImplementedException`; that is expected at this stage.
 
 </div>
+
+[starter-latest]: https://github.com/damienaicheh/hands-on-lab-modern-dotnet-api/releases/tag/starter-latest
 
 ---
