@@ -429,3 +429,24 @@ Code à fournir dans le guide:
 - Méthodes telemetry upload/search/download complètes avec propriétés et métriques.
 
 Diagram de sequence des appels d'API
+
+
+appsettings.json à ignorer dans la génération
+transformer en un simple .cs
+Regarder TrustServerCertificate
+
+await EnsureInitializedAsync(cancellationToken); utile toujours au début dans le storage account service ?
+
+Vérifié génération des labs pour les solutions étapes par étapes
+
+ .editorconfig 
+ 
+ rajouter une explication sur _resiliencePipeline
+
+ ajouter quelques lignes sur le logger
+
+ Expliquer plus Polly
+
+ Ajouter lab bonus pour suppression de document avec `DELETE /documents/{id}`
+
+ Mettre lien aka.ms

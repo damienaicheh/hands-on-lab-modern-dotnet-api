@@ -35,7 +35,7 @@ The health endpoint, DTOs, packages, and starter tests are already provided.
 
 ## Prepare Local Settings
 
-Before changing the API code, copy the `appsettings.json.template` content into the `appsettings.json` file. This will create your local settings file from the provided template. The API reads `appsettings.json` when it starts, and the template contains placeholders for the Azure resources deployed in the prerequisites.
+Before changing the API code, inside `src/DocumentAPI/` duplicate the `appsettings.json.template` file and rename the copy `appsettings.json`. This will create your local settings file from the provided template. The API reads `appsettings.json` when it starts, and the template contains placeholders for the Azure resources deployed in the prerequisites.
 
 From the repository root, run:
 

@@ -272,6 +272,7 @@ internal sealed record LabDefinition
 internal static partial class LabMarkerProcessor
 {
     private const string Starter = "starter";
+    private const string Solution = "solution";
 
     public static string Transform(string source, string targetLabId, string targetVariant, IReadOnlyDictionary<string, int> labOrder)
     {
@@ -382,7 +383,7 @@ internal static partial class LabMarkerProcessor
             return targetVariant;
         }
 
-        return Starter;
+        return blockLabIndex < targetLabIndex ? Solution : Starter;
     }
 
     private static string UnwrapLabLine(LinePart line)

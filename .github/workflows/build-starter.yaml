@@ -46,6 +46,6 @@ jobs:
 
           gh release create "${tag}" generated/labs/starter.zip \
             --target "${GITHUB_SHA}" \
-            --title "Starter Lab ${{ github.run_number }}" \
+            --title "Starter Lab" \
             --notes "Starter lab generated from lab 1 for commit ${GITHUB_SHA}." \
             --latest
