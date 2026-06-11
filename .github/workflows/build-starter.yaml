@@ -1,0 +1,43 @@
+name: Build Starter Lab
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-starter:
+    name: Generate starter lab
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore LabGen
+        run: dotnet restore tools/LabGen/LabGen.csproj
+
+      - name: Generate lab 1
+        run: dotnet run --project tools/LabGen -- generate --lab 1
+
+      - name: Rename generated lab to starter
+        run: |
+          rm -rf generated/labs/starter
+          mv generated/labs/1 generated/labs/starter
+
+      - name: Zip starter lab
+        run: |
+          cd generated/labs
+          zip -r starter.zip starter
+
+      - name: Upload starter artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: starter
+          path: generated/labs/starter.zip
+          if-no-files-found: error
