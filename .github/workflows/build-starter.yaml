@@ -6,8 +6,7 @@ on:
       - main
 
 permissions:
-  contents: read
-  packages: write
+  contents: write
 
 jobs:
   build-starter:
@@ -39,20 +38,14 @@ jobs:
           cd generated/labs
           zip -r starter.zip starter
 
-      - name: Setup ORAS
-        uses: oras-project/setup-oras@v1
-
-      - name: Login to GitHub Registry
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io --username "${{ github.actor }}" --password-stdin
-
-      - name: Publish starter package
+      - name: Publish starter release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          package_ref="ghcr.io/${GITHUB_REPOSITORY,,}/starter"
+          tag="starter-latest"
 
-          oras push "${package_ref}:latest" \
-            --artifact-type application/vnd.documentapi.starter-lab.v1+zip \
-            --annotation "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
-            --annotation "org.opencontainers.image.description=Starter lab generated from lab 1" \
-            generated/labs/starter.zip:application/zip
-
-          oras tag "${package_ref}:latest" "${GITHUB_SHA}"
+          gh release create "${tag}" generated/labs/starter.zip \
+            --target "${GITHUB_SHA}" \
+            --title "Starter Lab ${{ github.run_number }}" \
+            --notes "Starter lab generated from lab 1 for commit ${GITHUB_SHA}." \
+            --latest
