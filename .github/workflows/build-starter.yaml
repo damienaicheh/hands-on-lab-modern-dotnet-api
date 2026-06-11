@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-starter:
     name: Generate starter lab
@@ -12,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
@@ -35,9 +39,20 @@ jobs:
           cd generated/labs
           zip -r starter.zip starter
 
-      - name: Upload starter artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: starter
-          path: generated/labs/starter.zip
-          if-no-files-found: error
+      - name: Setup ORAS
+        uses: oras-project/setup-oras@v1
+
+      - name: Login to GitHub Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Publish starter package
+        run: |
+          package_ref="ghcr.io/${GITHUB_REPOSITORY,,}/starter"
+
+          oras push "${package_ref}:latest" \
+            --artifact-type application/vnd.documentapi.starter-lab.v1+zip \
+            --annotation "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.description=Starter lab generated from lab 1" \
+            generated/labs/starter.zip:application/zip
+
+          oras tag "${package_ref}:latest" "${GITHUB_SHA}"
