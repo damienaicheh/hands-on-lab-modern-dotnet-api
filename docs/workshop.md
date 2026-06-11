@@ -149,9 +149,13 @@ The health endpoint, DTOs, packages, and starter tests are already provided.
 
 </div>
 
+## Get the Starter Code
+
+Download the **starter.zip** file for these labs from the [releases page][starter-latest].
+
 ## Prepare Local Settings
 
-Before changing the API code, copy the `appsettings.json.template` content into the `appsettings.json` file. This will create your local settings file from the provided template. The API reads `appsettings.json` when it starts, and the template contains placeholders for the Azure resources deployed in the prerequisites.
+Before changing the API code, inside `src/DocumentAPI/` duplicate the `appsettings.json.template` file and rename the copy `appsettings.json`. This will create your local settings file from the provided template. The API reads `appsettings.json` when it starts, and the template contains placeholders for the Azure resources deployed in the prerequisites.
 
 From the repository root, run:
 
@@ -279,6 +283,8 @@ You must see something like this, with the three document endpoints visible:
 > The handlers can still throw `NotImplementedException`; that is expected at this stage.
 
 </div>
+
+[starter-latest]: https://github.com/damienaicheh/hands-on-lab-modern-dotnet-api/releases
 
 ---
 
@@ -626,6 +632,10 @@ if (metadataResult.Error is not null)
 	return Results.Problem(metadataResult.Error);
 }
 ```
+
+The `loggerFactory` parameter is provided by ASP.NET Core dependency injection, just like the document service and validator. Calling `CreateLogger("DocumentEndpoints")` creates a logger category for this endpoint class, so every message written through `logger` can be filtered and searched by that category later.
+
+You do not need to instantiate or configure a logger manually in the endpoint. ASP.NET Core wires logging into the application host, and later labs will send these structured log entries to the console and Application Insights.
 
 Then call the service:
 
@@ -2447,6 +2457,10 @@ using var _ = _logger.BeginScope(new Dictionary<string, object?>
 await _next(context);
 ```
 
+The `_logger` field is an `ILogger<CorrelationIdMiddleware>` injected by ASP.NET Core. The generic type becomes the log category, which helps you know which component produced a message when logs are displayed in the console, Application Insights traces, or another logging provider.
+
+`BeginScope` adds contextual properties to every log written while the request continues through the pipeline. Here, the correlation id and request path travel with the later endpoint and service logs, making it much easier to follow a single request across multiple components.
+
 Then implement correlation id resolution:
 
 ```csharp
@@ -2513,6 +2527,8 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 You can create custom events and metrics in Application Insights to understand the business operations happening in the API. If you remember from the previous labs, you use the `DocumentActivityMonitor` interface in the service methods to track document operations. The implementation of that interface is where you will emit the custom telemetry. Let's do it know.
 
 Open `ApplicationInsightsDocumentActivityMonitor.cs` and implement the `TrackSearch` method:
+
+In these methods, `_logger` and `_telemetryClient` are complementary. The logger writes human-readable diagnostic traces with named properties, while the telemetry client emits custom events and metrics that are easier to chart and aggregate. Keeping both means you can read the story of one request and also measure behavior across many requests.
 
 ```csharp
 _logger.LogInformation(

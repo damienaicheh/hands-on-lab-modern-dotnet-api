@@ -55,6 +55,10 @@ if (metadataResult.Error is not null)
 }
 ```
 
+The `loggerFactory` parameter is provided by ASP.NET Core dependency injection, just like the document service and validator. Calling `CreateLogger("DocumentEndpoints")` creates a logger category for this endpoint class, so every message written through `logger` can be filtered and searched by that category later.
+
+You do not need to instantiate or configure a logger manually in the endpoint. ASP.NET Core wires logging into the application host, and later labs will send these structured log entries to the console and Application Insights.
+
 Then call the service:
 
 The endpoint passes a command object to the service instead of many separate parameters. That makes the upload intent explicit and keeps the method signature readable.

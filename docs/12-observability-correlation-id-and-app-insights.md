@@ -46,6 +46,10 @@ using var _ = _logger.BeginScope(new Dictionary<string, object?>
 await _next(context);
 ```
 
+The `_logger` field is an `ILogger<CorrelationIdMiddleware>` injected by ASP.NET Core. The generic type becomes the log category, which helps you know which component produced a message when logs are displayed in the console, Application Insights traces, or another logging provider.
+
+`BeginScope` adds contextual properties to every log written while the request continues through the pipeline. Here, the correlation id and request path travel with the later endpoint and service logs, making it much easier to follow a single request across multiple components.
+
 Then implement correlation id resolution:
 
 ```csharp
@@ -112,6 +116,8 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 You can create custom events and metrics in Application Insights to understand the business operations happening in the API. If you remember from the previous labs, you use the `DocumentActivityMonitor` interface in the service methods to track document operations. The implementation of that interface is where you will emit the custom telemetry. Let's do it know.
 
 Open `ApplicationInsightsDocumentActivityMonitor.cs` and implement the `TrackSearch` method:
+
+In these methods, `_logger` and `_telemetryClient` are complementary. The logger writes human-readable diagnostic traces with named properties, while the telemetry client emits custom events and metrics that are easier to chart and aggregate. Keeping both means you can read the story of one request and also measure behavior across many requests.
 
 ```csharp
 _logger.LogInformation(
