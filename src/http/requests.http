@@ -40,10 +40,10 @@ Content-Disposition: form-data; name="metadata"
 ### 4. Search documents
 # @name searchDocuments
 GET {{authority}}/documents/search?api-version={{apiVersion}}&query=sample
-Authorization: Bearer {{token}}
+// Authorization: Bearer {{token}}
 Accept: application/json
 
 ### 5. Download the last uploaded document
 GET {{authority}}/documents/{{uploadDocument.response.body.$.id}}/content?api-version={{apiVersion}}
-Authorization: Bearer {{token}}
+// Authorization: Bearer {{token}}
 Accept: application/pdf

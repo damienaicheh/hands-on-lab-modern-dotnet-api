@@ -1,0 +1,21 @@
+# Keep text files normalized in Git and checked out consistently on every OS.
+* text=auto eol=lf
+
+# Windows command files and HTTP samples intentionally use CRLF.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.http text eol=crlf
+
+# Shell scripts must stay LF for Linux/devcontainer execution.
+*.sh   text eol=lf
+
+# Binary files: never apply line-ending conversions.
+*.dll  binary
+*.exe  binary
+*.gif  binary
+*.ico  binary
+*.jpg  binary
+*.jpeg binary
+*.pdf  binary
+*.png  binary
+*.zip  binary
