@@ -168,6 +168,6 @@ You must see something like this, with the three document endpoints visible:
 
 </div>
 
-[starter-latest]: https://github.com/damienaicheh/hands-on-lab-modern-dotnet-api/releases/tag/starter-latest
+[starter-latest]: https://github.com/damienaicheh/hands-on-lab-modern-dotnet-api/releases
 
 ---
