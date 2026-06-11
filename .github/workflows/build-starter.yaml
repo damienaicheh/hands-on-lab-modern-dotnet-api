@@ -1,7 +1,7 @@
 name: Build Starter Lab
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - main
 
@@ -42,7 +42,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="starter-latest"
+          tag="starter-${{ github.run_number }}"
 
           gh release create "${tag}" generated/labs/starter.zip \
             --target "${GITHUB_SHA}" \
