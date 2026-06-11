@@ -9,10 +9,3 @@ await EnsureInitializedAsync(cancellationToken); utile toujours au début dans l
 
  .editorconfig 
  
- rajouter une explication sur _resiliencePipeline
-
- Expliquer plus Polly
-
- Ajouter lab bonus pour suppression de document avec `DELETE /documents/{id}`
-
- Mettre lien aka.ms

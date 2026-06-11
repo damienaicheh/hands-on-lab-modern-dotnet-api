@@ -58,6 +58,8 @@ _activityMonitor.TrackDownloadSucceeded(document.Id, document.ContentType, docum
 return new DocumentContentResult(document.FileName, document.ContentType, stream);
 ```
 
+This uses the same Polly pipeline introduced in the upload robustness lab. Only the SQL metadata lookup is wrapped because that is the dependency call covered by this retry policy; the Blob Storage read is handled separately by the storage service and the Azure SDK retry configuration.
+
 Keep the same structure as upload: start the stopwatch, wrap the dependency calls in `try`, log dependency failures, and let the endpoint translate them into HTTP responses.
 
 ```csharp
@@ -172,6 +174,8 @@ catch (Exception exception) when (exception is not OperationCanceledException)
 	throw;
 }
 ```
+
+Here again, Polly protects the SQL query, not the full endpoint. If the query keeps failing after the configured retry attempts, the exception still flows to the `catch` block so the service can log it and the endpoint can return a predictable error response.
 
 The `cacheHit` value is always `false` in this lab. The next lab will add the cache and replace this direct query with cache-aware behavior.
 

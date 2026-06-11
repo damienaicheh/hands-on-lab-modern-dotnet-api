@@ -78,6 +78,8 @@ catch (Exception exception) when (exception is not OperationCanceledException)
 
 As you can see the cache key is created from the search criteria and shared cache version. The service first checks for a cache hit and returns cached results if they exist. If not, it executes the query, stores the results in cache with a TTL, and returns them.
 
+Notice that `_resiliencePipeline.ExecuteAsync(...)` is only called on a cache miss. A cache hit returns from memory and avoids the database completely, so there is no SQL dependency call for Polly to retry. On a miss, the database query still benefits from the same transient-failure retry policy used by upload and download.
+
 The shared cache version is part of the key as you can see in the `CreateCacheKey` method. Incrementing it invalidates all previous search entries without having to enumerate cache keys.
 
 ## Invalidate After Upload

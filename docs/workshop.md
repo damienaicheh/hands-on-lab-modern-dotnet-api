@@ -809,6 +809,16 @@ You only need to edit these files:
 
 Exceptions, upload options, content type helpers, and the resilience pipeline are already provided.
 
+## Understand The Resilience Pipeline
+
+This lab introduces Polly, a .NET resilience library used to make dependency calls more reliable. Instead of writing retry loops by hand around every SQL Server call, the API centralizes the retry policy in `DocumentResiliencePipeline` and injects the resulting `ResiliencePipeline` into `DocumentService`.
+
+The pipeline used in this workshop retries only failures that are usually temporary: transient `SqlException` values, `DbUpdateException` values caused by a transient SQL exception, and `TimeoutException`. It does not retry business errors such as duplicate documents, validation failures, or unsupported file types, because repeating those requests would not make them succeed.
+
+The retry strategy uses exponential backoff with jitter. Exponential backoff waits longer after each failed attempt, while jitter adds a small random variation so many clients do not retry at exactly the same moment. This is a common pattern when a database is throttled, busy, restarting, or briefly unreachable.
+
+In the service code, `_resiliencePipeline.ExecuteAsync(...)` means: run this database operation through the shared retry policy, pass the cancellation token through, and either return the result or rethrow the final exception if all retry attempts fail.
+
 ## Strengthen Upload Validation
 
 Validation is deliberately outside the endpoint body. That keeps HTTP parsing separate from business rules and makes the rules easier to test in isolation later.
@@ -907,6 +917,8 @@ if (existingDocument is not null)
 	throw new DuplicateDocumentException(existingDocument.Id);
 }
 ```
+
+The duplicate lookup is a good candidate for the pipeline because it depends on SQL Server and can fail transiently. Keeping the retry wrapper around the database call also keeps the rest of the method focused on document behavior instead of infrastructure retry mechanics.
 
 Wrap the storage and database writes in a `try` block and track whether the blob was uploaded. If the blob upload succeeds but SQL persistence fails, the service can remove the blob so the two dependencies do not drift apart.
 
@@ -1252,6 +1264,8 @@ _activityMonitor.TrackDownloadSucceeded(document.Id, document.ContentType, docum
 return new DocumentContentResult(document.FileName, document.ContentType, stream);
 ```
 
+This uses the same Polly pipeline introduced in the upload robustness lab. Only the SQL metadata lookup is wrapped because that is the dependency call covered by this retry policy; the Blob Storage read is handled separately by the storage service and the Azure SDK retry configuration.
+
 Keep the same structure as upload: start the stopwatch, wrap the dependency calls in `try`, log dependency failures, and let the endpoint translate them into HTTP responses.
 
 ```csharp
@@ -1366,6 +1380,8 @@ catch (Exception exception) when (exception is not OperationCanceledException)
 	throw;
 }
 ```
+
+Here again, Polly protects the SQL query, not the full endpoint. If the query keeps failing after the configured retry attempts, the exception still flows to the `catch` block so the service can log it and the endpoint can return a predictable error response.
 
 The `cacheHit` value is always `false` in this lab. The next lab will add the cache and replace this direct query with cache-aware behavior.
 
@@ -1593,6 +1609,8 @@ catch (Exception exception) when (exception is not OperationCanceledException)
 ```
 
 As you can see the cache key is created from the search criteria and shared cache version. The service first checks for a cache hit and returns cached results if they exist. If not, it executes the query, stores the results in cache with a TTL, and returns them.
+
+Notice that `_resiliencePipeline.ExecuteAsync(...)` is only called on a cache miss. A cache hit returns from memory and avoids the database completely, so there is no SQL dependency call for Polly to retry. On a miss, the database query still benefits from the same transient-failure retry policy used by upload and download.
 
 The shared cache version is part of the key as you can see in the `CreateCacheKey` method. Incrementing it invalidates all previous search entries without having to enumerate cache keys.
 
@@ -2746,6 +2764,16 @@ customMetrics
 ```
 
 Feel free to explore the other custom events and metrics you emitted.
+
+---
+
+## Bonus Lab: Implementing Document Deletion
+
+In this bonus lab, you will implement the ability to delete a document from the API. This will involve creating a new endpoint, implementing the corresponding service method, and ensuring that the document is removed from both storage and metadata.
+
+Use GitHub Copilot to assist you in writing the code using the agent mode and the model of your choice. You can ask Copilot to generate code snippets, suggest improvements, or help you with any part of the implementation.
+
+Validate your development by adding the new endpoint to the `request.http` file and add unit tests to cover the deletion functionality.
 
 ---
 
