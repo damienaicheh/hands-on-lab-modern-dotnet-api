@@ -34,10 +34,12 @@ Open `DocumentService.cs` and implement `DownloadAsync`:
 ```csharp
 var stopwatch = Stopwatch.StartNew();
 
+// Polly passes this token into the delegate so Entity Framework Core can cancel the SQL query if the request is aborted.
+// AsNoTracking method keeps this read-only metadata lookup lighter because the entity will not be updated.
 var document = await _resiliencePipeline.ExecuteAsync(
 	async token => await _dbContext.Documents
 		.AsNoTracking()
-		.FirstOrDefaultAsync(candidate => candidate.Id == id, token),
+		.FirstOrDefaultAsync(storedDocument => storedDocument.Id == id, token),
 	cancellationToken);
 
 if (document is null)
@@ -59,6 +61,10 @@ return new DocumentContentResult(document.FileName, document.ContentType, stream
 ```
 
 This uses the same Polly pipeline introduced in the upload robustness lab. Only the SQL metadata lookup is wrapped because that is the dependency call covered by this retry policy; the Blob Storage read is handled separately by the storage service and the Azure SDK retry configuration.
+
+Inside the lambda, `token` is the cancellation token Polly gives to the operation. It comes from the `cancellationToken` passed to `ExecuteAsync`, and EF Core receives it so the SQL query can stop if the HTTP request is cancelled. The `storedDocument` parameter represents each document row EF Core checks while building the `WHERE` clause for `Id == id`; it is just a local name, chosen to make the predicate easier to read.
+
+`AsNoTracking()` tells EF Core that this query is read-only. The service only needs metadata to locate the blob and return a response, so EF Core does not need to keep change-tracking information for the entity.
 
 Keep the same structure as upload: start the stopwatch, wrap the dependency calls in `try`, log dependency failures, and let the endpoint translate them into HTTP responses.
 

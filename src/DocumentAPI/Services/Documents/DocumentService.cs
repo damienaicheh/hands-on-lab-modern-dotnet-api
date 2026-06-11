@@ -265,10 +265,12 @@ internal sealed class DocumentService(
 
         try
         {
+            // Polly passes this token into the delegate so Entity Framework Core can cancel the SQL query if the request is aborted.
+            // AsNoTracking method keeps this read-only metadata lookup lighter because the entity will not be updated.
             var document = await _resiliencePipeline.ExecuteAsync(
                 async token => await _dbContext.Documents
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(candidate => candidate.Id == id, token),
+                    .FirstOrDefaultAsync(storedDocument => storedDocument.Id == id, token),
                 cancellationToken);
 
             if (document is null)
