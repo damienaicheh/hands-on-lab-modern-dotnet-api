@@ -154,7 +154,7 @@ To test the authenticated path, generate a valid JWT :
 
 
 1. Open https://jwt.io/
-2. In the Decoded section, update the Header.
+2. In the Encoded section, update the Header.
 3. Use this Header:
 ```json
 {
