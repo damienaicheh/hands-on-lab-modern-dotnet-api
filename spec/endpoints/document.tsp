@@ -19,10 +19,10 @@ interface Documents {
     @query tag?: string,
     @query contentType?: string,
   ): DocumentListResponse
-    | BadRequestErrorResponse
-    | InternalServerErrorApiResponse
-    | ServiceUnavailableApiErrorResponse
-    | UnauthorizedErrorResponse;
+    | BadRequestProblemResponse
+    | InternalServerErrorProblemResponse
+    | ServiceUnavailableProblemResponse
+    | UnauthorizedProblemResponse;
 
   @doc("Upload a PDF, TXT, DOC, or DOCX document with metadata.")
   @post upload(
@@ -33,13 +33,13 @@ interface Documents {
       metadata: HttpPart<DocumentMetadata>;
     },
   ): DocumentCreatedResponse
-    | BadRequestErrorResponse
-    | ConflictErrorResponse
-    | InternalServerErrorApiResponse
-    | BadGatewayApiErrorResponse
-    | ServiceUnavailableApiErrorResponse
-    | PayloadTooLargeErrorResponse
-    | UnauthorizedErrorResponse;
+    | BadRequestProblemResponse
+    | ConflictProblemResponse
+    | InternalServerErrorProblemResponse
+    | BadGatewayProblemResponse
+    | ServiceUnavailableProblemResponse
+    | PayloadTooLargeProblemResponse
+    | UnauthorizedProblemResponse;
 
   @doc("Download the file content of a document.")
   @route("/{id}/content")
@@ -47,9 +47,9 @@ interface Documents {
     ...ApiVersionParameter,
     @path id: string,
   ): DocumentDownloadResponse
-    | BadRequestErrorResponse
-    | NotFoundErrorResponse
-    | InternalServerErrorApiResponse
-    | ServiceUnavailableApiErrorResponse
-    | UnauthorizedErrorResponse;
+    | BadRequestProblemResponse
+    | NotFoundProblemResponse
+    | InternalServerErrorProblemResponse
+    | ServiceUnavailableProblemResponse
+    | UnauthorizedProblemResponse;
 }

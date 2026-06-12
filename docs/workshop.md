@@ -107,7 +107,7 @@ The deployment should take around 5 minutes to complete.
 [visual-studio]: https://visualstudio.microsoft.com/
 [vs-code]: https://code.visualstudio.com/
 [docker-desktop]: https://www.docker.com/products/docker-desktop/
-[repo-fork]: https://github.com/damienaicheh/hands-on-lab-agent-framework-on-azure/fork
+[repo-fork]: https://github.com/damienaicheh/hands-on-lab-modern-dotnet-api/fork
 [git-client]: https://git-scm.com/downloads
 [github-account]: https://github.com/join
 [download-terraform]: https://developer.hashicorp.com/terraform/install
@@ -365,9 +365,11 @@ public static async Task InitializeDocumentDatabaseAsync(
 }
 ```
 
-<div class="tip" data-title="Why migrations at startup?">
+<div class="warning" data-title="Production warning">
 
-> For this hands-on lab, applying migrations at startup keeps the environment simple. In production, database changes can be deployed using the API code or custom scripts outside of the application. Both approaches are valid, and the best choice depends on your operational practices and risk management.
+> For this hands-on lab, applying migrations at startup keeps the environment simple and lets you see the database schema appear immediately.
+>
+> In production, this pattern can create concurrency risks, slow application startup, and cause incidents during multi-instance deployments. Prefer applying migrations from the deployment pipeline instead, for example with a dedicated job, a migration bundle, or an approved database deployment step that runs before the API starts serving traffic.
 
 </div>
 
@@ -2378,7 +2380,7 @@ To test the authenticated path, generate a valid JWT :
 
 
 1. Open https://jwt.io/
-2. In the Decoded section, update the Header.
+2. In the Encoded section, update the Header.
 3. Use this Header:
 ```json
 {

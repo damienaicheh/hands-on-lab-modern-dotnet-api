@@ -10,5 +10,5 @@ namespace DocumentAPI;
 @tag("Health")
 interface Health {
   @doc("Returns the service health status.")
-  @get check(): HealthCheckOkResponse | HealthCheckUnavailableResponse | BadRequestErrorResponse;
+  @get check(): HealthCheckOkResponse | HealthCheckUnavailableResponse | BadRequestProblemResponse;
 }

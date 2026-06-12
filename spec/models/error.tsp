@@ -4,54 +4,58 @@ using Http;
 
 namespace DocumentAPI;
 
-@error
-model Error {
-  code: int32;
-  message: string;
+model ProblemDetails {
+  type?: string;
+  title?: string;
+  status?: int32;
+  detail?: string;
+  instance?: string;
 }
 
-@error
-model UnauthorizedError {
-  code: "UNAUTHORIZED";
-  message: string;
-}
-
-model BadRequestErrorResponse {
+model BadRequestProblemResponse {
   ...BadRequestResponse;
-  ...Body<Error>;
+  @header contentType: "application/problem+json";
+  ...Body<ProblemDetails>;
 }
 
-model NotFoundErrorResponse {
+model NotFoundProblemResponse {
   ...NotFoundResponse;
-  ...Body<Error>;
+  @header contentType: "application/problem+json";
+  ...Body<ProblemDetails>;
 }
 
-model ConflictErrorResponse {
+model ConflictProblemResponse {
   @statusCode statusCode: 409;
-  @body body: Error;
+  @header contentType: "application/problem+json";
+  @body body: ProblemDetails;
 }
 
-model PayloadTooLargeErrorResponse {
+model PayloadTooLargeProblemResponse {
   @statusCode statusCode: 413;
-  @body body: Error;
+  @header contentType: "application/problem+json";
+  @body body: ProblemDetails;
 }
 
-model UnauthorizedErrorResponse {
+model UnauthorizedProblemResponse {
   ...UnauthorizedResponse;
-  ...Body<UnauthorizedError>;
+  @header contentType: "application/problem+json";
+  ...Body<ProblemDetails>;
 }
 
-model InternalServerErrorApiResponse {
+model InternalServerErrorProblemResponse {
   @statusCode statusCode: 500;
-  @body body: Error;
+  @header contentType: "application/problem+json";
+  @body body: ProblemDetails;
 }
 
-model BadGatewayApiErrorResponse {
+model BadGatewayProblemResponse {
   @statusCode statusCode: 502;
-  @body body: Error;
+  @header contentType: "application/problem+json";
+  @body body: ProblemDetails;
 }
 
-model ServiceUnavailableApiErrorResponse {
+model ServiceUnavailableProblemResponse {
   @statusCode statusCode: 503;
-  @body body: Error;
+  @header contentType: "application/problem+json";
+  @body body: ProblemDetails;
 }
